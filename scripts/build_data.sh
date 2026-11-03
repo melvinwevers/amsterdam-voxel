@@ -8,6 +8,7 @@ sh scripts/fetch_nl.sh
 PYTHONPATH=scripts uv run python scripts/prep.py
 PYTHONPATH=scripts uv run python scripts/notable.py      # Wikidata places + page views, for the labels
 PYTHONPATH=scripts uv run python scripts/climate.py
+PYTHONPATH=scripts uv run --with pyogrio --with geopandas python scripts/bgt_water.py   # surveyed water where OSM has none
 PYTHONPATH=scripts uv run python scripts/voxelize.py
 for s in terrain zones windows places phenology; do PYTHONPATH=scripts uv run python scripts/$s.py; done
 # the historical layer (the year slider)

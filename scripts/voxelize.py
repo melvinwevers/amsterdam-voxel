@@ -386,6 +386,11 @@ water = [(geom, C["granite_d"] if t.get("fountain") == "splash_pad" else C["wood
           else C["water"]) for oid, typ, t, geom in osm.areas
          if (t.get("amenity") == "fountain" or t.get("natural") == "water" or t.get("water")) and not tunnelish(t)]
 burn(gcol, water)
+# the BGT's surveyed water (scripts/bgt_water.py) where OSM has none: the Rokin, the Amstel, parts of the IJ
+if Path("data/bgt_water.npy").exists():
+    _bw = np.load("data/bgt_water.npy")
+    note("BGT water added where OSM had none (m2):", int((_bw & (gcol != C["water"])).sum()))
+    gcol[_bw] = C["water"]
 # the Vistula (and ponds): one flat surface per water body -- the DTM over water steps in 1 m terraces that show as
 # lines across the river; it drops ~0.3 m across the map, so a single level is truthful
 wlab, wn = ndimage.label(gcol == C["water"])
