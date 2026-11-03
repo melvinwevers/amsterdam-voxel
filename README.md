@@ -1,5 +1,8 @@
 # Amsterdam in voxels
 
+> Based on **[Warsaw in voxels](https://github.com/stared/warsaw-vibe-voxel)** by Piotr Migdał (MIT): this is
+> its pipeline and viewer, ported to Amsterdam's open data, with a year slider through the city's history added.
+
 A 3400 × 3300 m diorama of central Amsterdam at 1 m voxels, centred on the Dam: the canal belt and the Jordaan,
 the old centre, Centraal Station and the IJ, south to the Rijksmuseum and the Vondelpark's edge. Fourteen landmarks
 are drawn at 0.5 m. Date, hour and weather are sliders, and a year slider takes the city back through time: the

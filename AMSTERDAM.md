@@ -1,5 +1,7 @@
 # Amsterdam port: source data
 
+A port of [stared/warsaw-vibe-voxel](https://github.com/stared/warsaw-vibe-voxel) (Piotr Migdał, MIT) to Amsterdam.
+
 The AOI (`scripts/aoi.py`) is 3400 × 3300 m on the RD New axes (EPSG:28992), centred on the Dam: from the Westerkerk
 and the Jordaan east to Artis, from the IJ behind Centraal Station south to the Rijksmuseum. The grid is not rotated:
 the canal belt is a horseshoe with no single axis.
