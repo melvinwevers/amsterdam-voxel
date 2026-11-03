@@ -61,6 +61,7 @@ export interface FloodInfo {
 export interface Zones {
   blocks: number[][];
   buildings: number[][];
+  years?: number[]; // construction year per building (scripts/zones.py), 0 = unknown
 }
 
 export type Place = [name: string, kind: string, x: number, y: number, size: number, alt: string];

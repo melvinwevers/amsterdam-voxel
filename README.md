@@ -1,5 +1,7 @@
 # Warszawa Śródmieście in voxels
 
+> **Amsterdam port in progress:** the Dutch data fetchers are in place, see [AMSTERDAM.md](AMSTERDAM.md). The rest of this README still describes Warsaw.
+
 A 3950 × 3150 m diorama of central Warsaw at 1 m voxels, anchored on the PKiN spire and rotated 21.5° to the Palace axes (so walls and the street grid are not staircased), in the style of MagicaVoxel renders (ephtracy). It covers:
 - the Palace of Culture and Science (PKiN), Złota 44, Złote Tarasy and the newly greened Złota
 - Warszawa Centralna station and the Rondo ONZ towers

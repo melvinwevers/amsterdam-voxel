@@ -1,0 +1,41 @@
+{
+ "source": "Amsterdam Time Machine (tiles.amsterdamtimemachine.nl)",
+ "maps": [
+  {
+   "year": 1625,
+   "title": "Balthasar Florisz. van Berckenrode, 1625",
+   "file": "maps/1625.webp",
+   "cover": 0.952
+  },
+  {
+   "year": 1724,
+   "title": "Gerrit de Broen, 1724",
+   "file": "maps/1724.webp",
+   "cover": 1.0
+  },
+  {
+   "year": 1876,
+   "title": "Loman's Buurtatlas, 1876",
+   "file": "maps/1876.webp",
+   "cover": 1.0
+  },
+  {
+   "year": 1909,
+   "title": "Publieke Werken, 1909",
+   "file": "maps/1909.webp",
+   "cover": 1.0
+  },
+  {
+   "year": 1943,
+   "title": "Publieke Werken, 1943",
+   "file": "maps/1943.webp",
+   "cover": 1.0
+  },
+  {
+   "year": 1985,
+   "title": "Publieke Werken, 1985",
+   "file": "maps/1985.webp",
+   "cover": 1.0
+  }
+ ]
+}

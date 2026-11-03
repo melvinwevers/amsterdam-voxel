@@ -63,11 +63,12 @@ export class Bar {
   readonly el = el('div', '');
   readonly search: PlaceSearch;
   readonly river: Slider;
+  readonly year: Slider;
   private readonly time: Slider;
   private readonly date: Slider;
   private readonly sky: HTMLElement;
 
-  constructor({ days, weathers, river, onDay, onDayEnd, onHour, onWeather, onRiver }: {
+  constructor({ days, weathers, river, now, yearNote, onDay, onDayEnd, onHour, onWeather, onRiver, onYear }: {
     days: Record<string, number>;
     weathers: string[];
     river: Record<string, number>;
@@ -76,15 +77,21 @@ export class Bar {
     onHour: (h: number) => void;
     onWeather: (w: string) => void;
     onRiver: (cm: number) => void;
+    now: number;
+    yearNote: (y: number) => string; // what the year shows besides the buildings (the map underfoot)
+    onYear: (y: number) => void;
   }) {
     this.el.id = 'bar';
-    this.search = new PlaceSearch(this.el, 'Search Warsaw…');
+    this.search = new PlaceSearch(this.el, 'Search Amsterdam…');
     this.date = new Slider(this.el, { min: 1, max: 365, step: 1, marks: days, near: 3, log: false, show: dayMonth, onInput: onDay, onChange: onDayEnd });
     this.time = new Slider(this.el, { min: 4, max: 23.5, step: 1 / 60, marks: {}, near: 1 / 3, log: false, show: hhmm, onInput: onHour });
     this.sky = choices('sky', 'Weather', weathers, this.el);
     this.sky.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest('button'); if (b) onWeather(b.dataset.v!); });
     this.river = new Slider(this.el, { min: Math.min(...Object.values(river)), max: 1150, step: 1, marks: river, near: 20, log: true, shift: 460, show: (cm) => `Vistula ${cm} cm`, onInput: onRiver });
     this.river.input.disabled = true;
+    this.year = new Slider(this.el, { min: 1300, max: now, step: 1, marks: { today: now, 'Golden Age': 1660, 'Amsterdam School': 1925 }, near: 4, log: false,
+      show: (y) => (y >= now ? 'Built by today' : `Built by ${y}${yearNote(y) ? ` <span class="mark">map: ${yearNote(y)}</span>` : ''}`), onInput: onYear });
+    this.year.set(now);
   }
 
   setDay(d: number, times: Record<string, number>) { this.date.set(d); this.time.setMarks(times); }

@@ -17,12 +17,12 @@ from shapely.geometry import Point
 from shapely.strtree import STRtree
 
 import landmarks
-from aoi import RAW, W, D
+from aoi import CITY, RAW, W, D
 from osm import to_grid
 
 NOTABLE = Path(RAW) / "notable.json"
 META = Path(__file__).resolve().parent.parent / "web/public/data/meta.json"
-IN_WARSAW = re.compile(r",?\s+(in|w)\s+(Warsaw|Warszawie)\b.*$|,\s*Warsaw$|\s*\((Śródmieście|Powiśle|Wola|Nowy Świat)\)$", re.I)
+IN_WARSAW = re.compile(r",?\s+(in|w)\s+(Warsaw|Warszawie|Amsterdam)\b.*$|,\s*(Warsaw|Amsterdam)$|\s*\((Śródmieście|Powiśle|Wola|Nowy Świat)\)$", re.I)
 
 # how far away (m) each label shows, judged place by place: the whole map for what defines the city, a few hundred
 # metres for a small monument; the Jazdów houses (~220 m) come with their own
@@ -218,6 +218,35 @@ PICKS = {
     "Q33545766": P(name="Hala Gwardii", en="", kind="market hall"),
     "Q60862214": P(kind="stadium"),
 }
+
+# Amsterdam has no hand-picked list yet: the most read items on the map, minus what is not a place to point at
+SKIP_TYPES = re.compile(r"street|road|avenue|neighbo|quarter|district|borough|city|municipal|organi[sz]ation|company|"
+                        r"business|enterprise|event|festival|former|demolished|destroyed|human|person|record label|"
+                        r"band|club|association|foundation|political|government agency|newspaper|website|canal ring|"
+                        r"heritage site|area|route|tram|bus|line|ferry|archive|collection|country|kingdom|realm|sovereign state|"
+                        r"painting|riot|pogrom|crime|attack|shooting|protest|battle|siege|work of art series|assassination|murder|"
+                        r"massacre|hostage|conflagration|fire\b|disaster|season|sea level|vertical datum|incident", re.I)
+GENERIC_TYPES = {"rijksmonument", "national heritage site", "building", "structure", "architectural structure",
+                 "tourist attraction", "gemeentelijk monument", "cultural heritage", "monument"}
+
+
+def auto_picks(wd, n=150):
+    picks = {}
+    for qid, e in sorted(wd.items(), key=lambda kv: -kv[1]["views"]):
+        types = [t for t in (e["types"] or "").split("|") if t]
+        if not (e["pl"] or e["en"]) or not types or any(SKIP_TYPES.search(t) for t in types):
+            continue
+        kind = next((t for t in types if t.lower() not in GENERIC_TYPES), types[0])
+        picks[qid] = P(name=e["pl"] or e["en"], kind=kind)
+        if len(picks) >= n:
+            break
+    return picks
+
+
+def far_from_views(v):
+    """how far a label shows when FAR_TIERS has no say: tiers by yearly page views"""
+    return next(far for floor, far in ((400_000, 9000), (120_000, 5000), (40_000, 1800), (12_000, 900), (0, 400)) if v >= floor)
+
 
 # official sites for labels Wikidata has none for, found and checked by hand (Oct 2026)
 SITES = {
@@ -549,11 +578,13 @@ def notable(osm, curated_qids, top_at):
     """Where the place is: the OSM object tagged with its Wikidata id (Wikidata's own point is often the whole
     complex's -- every museum and theatre in PKiN on one spot -- or an old address; a statue snapped to the nearest
     building landed on its roof); else Wikidata's point, on the building it falls in or next to."""
+    if not NOTABLE.exists():
+        return []
     wd = json.loads(NOTABLE.read_text())
     polys, tree = buildings(osm)
     by_q = tagged(osm)
     out = []
-    for qid, pick in PICKS.items():
+    for qid, pick in (PICKS if CITY == "warsaw" else auto_picks(wd)).items():
         e = wd[qid]
         pt = Point(to_grid(*e["at"]))
         own = [(t, g) for t, g in by_q.get(qid, []) if 0 <= g.centroid.x < W and 0 <= g.centroid.y < D]
@@ -614,12 +645,15 @@ def finish(labels, curated_views, curated_sites):
         v = curated_views.get(l["name"], 0)
         l["far"] = FAR.get(key(l)) or l.get("far")
         l.setdefault("views", v)
+        if not l["far"] and CITY != "warsaw":
+            l["far"] = max(far_from_views(l["views"]), 1800 if not l.get("auto") else 0)
     missing = [l["name"] for l in labels if not l["far"]]
     assert not missing, f"no distance for {missing}: add them to FAR_TIERS"
     labels.sort(key=lambda l: (-l["far"], -l["views"]))
     kept = []
     for l in labels:
-        if not l.get("auto") or all((l["x"] - k["x"]) ** 2 + (l["y"] - k["y"]) ** 2 > 15 ** 2 for k in kept):
+        if not l.get("auto") or all((l["x"] - k["x"]) ** 2 + (l["y"] - k["y"]) ** 2 > 15 ** 2 and
+                                    not l["name"].startswith(k["name"]) for k in kept):
             kept.append(l)
     labels[:] = kept
     for l in labels:
@@ -635,7 +669,7 @@ def assemble(curated, osm, top_at):
     for facts, poly in landmarks.jazdow_houses(osm):
         p = poly.representative_point()
         curated.append(dict(facts, x=int(p.x), y=int(p.y), z=top_at(int(p.y), int(p.x))))
-    wd = json.loads(NOTABLE.read_text())
+    wd = json.loads(NOTABLE.read_text()) if NOTABLE.exists() else {}  # notable.py not run yet: curated labels only
     qids, views, sites = curated_wikidata(osm, wd)
     roof_height(curated, osm, top_at)
     return finish(curated + notable(osm, qids, top_at), views, sites)

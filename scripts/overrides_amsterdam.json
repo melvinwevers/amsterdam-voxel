@@ -1,0 +1,305 @@
+{
+  "_doc": "Per-building curation applied on top of LiDAR+OSM. Keyed by OSM element id (way/relation) or by name. Fields: wall/roof {colour, material}; zones: facade split along the footprint's long axis (from/to are fractions 0..1, measured from end 'origin': west|east|north|south); crown: facade band at the top {height, colour, material, sign_colour, tip: only the first fraction of the long axis from the origin end}; min_part_height: apply only to parts taller than this; label {name, en, kind, height, year, rebuilt, by, building} as in landmarks.LABELS; sources. Materials: wall, glass, concrete, metal, pkin, bronze_grid, sign. Areas (any OSM area id, e.g. a stadium): stripes {colours, width (m along the perimeter), material, min_height} paint the walls of every building part inside it in vertical bands by angle around the area's centre; stripes.bands [{to (m above ground), colour | checker [two colours] + cell [w, h m] + p/dp (share of the second colour, rising with height), material}] paint by height instead, or {to, repeat [[m, colour, material], ...]} cycled floor by floor; smooth {masts, mast_h, outline, podium} rebuilds a stadium roof as one surface (median height by distance from the smoothed outer edge) with thin masts round the rim. (Amsterdam's entries; scripts/overrides.json holds Warsaw's.) year: the construction year for the year slider (zones.py), where BAG's is a restoration's or missing.",
+  "buildings": {
+    "99203577": {
+      "name": "Westertoren (1638, Hendrick de Keyser; 85 m)",
+      "stripes": {
+        "colours": [
+          "#6e3a2e"
+        ],
+        "bands": [
+          {
+            "to": 38,
+            "colour": "#6e3a2e",
+            "material": "classic"
+          },
+          {
+            "to": 52,
+            "colour": "#b9b0a0",
+            "material": "classic"
+          },
+          {
+            "to": 74,
+            "colour": "#4b5058",
+            "material": "metal"
+          },
+          {
+            "to": 80,
+            "colour": "#2f5aa0",
+            "material": "metal"
+          },
+          {
+            "colour": "#c9a646",
+            "material": "metal"
+          }
+        ]
+      },
+      "_note": "square brick and sandstone base; octagonal sandstone stage; lead-clad timber stages; Maximilian's blue imperial crown with gold at the top",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Amsterdam_(NL),_Westerkerk_--_2015_--_7186.jpg",
+        "https://en.wikipedia.org/wiki/Westerkerk"
+      ]
+    },
+    "Westerkerk": {
+      "wall": {
+        "colour": "#6a3a2f",
+        "material": "classic"
+      },
+      "_note": "BAG year 1990 is a restoration; the church is 1620-31 red brick with sandstone dressings",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Westerkerk"
+      ],
+      "year": 1631
+    },
+    "114120359": {
+      "name": "Zuiderkerk (1611; tower 1614)",
+      "stripes": {
+        "colours": [
+          "#6e3a2e"
+        ],
+        "bands": [
+          {
+            "to": 30,
+            "colour": "#6e3a2e",
+            "material": "classic"
+          },
+          {
+            "to": 42,
+            "colour": "#ddd5c5",
+            "material": "classic"
+          },
+          {
+            "colour": "#434a5c",
+            "material": "metal"
+          }
+        ]
+      },
+      "_note": "brick body and tower base, white sandstone stage with clock, dark lead spire (photo: stone stage #79726c in shade, spire #434a5c)",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Zuiderkerkstoren_gezien_vanaf_de_Kloveniersburgwal.jpg"
+      ]
+    },
+    "57862728": {
+      "name": "Munttoren (base 1490, top 1620)",
+      "stripes": {
+        "colours": [
+          "#7a4232"
+        ],
+        "bands": [
+          {
+            "to": 12,
+            "colour": "#7a4232",
+            "material": "classic"
+          },
+          {
+            "to": 26,
+            "colour": "#c8c6bd",
+            "material": "classic"
+          },
+          {
+            "colour": "#45494f",
+            "material": "metal"
+          }
+        ]
+      },
+      "_note": "red brick base of the medieval gate, light sandstone and timber octagon, lead spire",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Munttoren_(Amsterdam).JPG"
+      ],
+      "year": 1620
+    },
+    "57864086": {
+      "name": "Montelbaanstoren (1516; top 1606)",
+      "stripes": {
+        "colours": [
+          "#6c3c2f"
+        ],
+        "bands": [
+          {
+            "to": 18,
+            "colour": "#6c3c2f",
+            "material": "classic"
+          },
+          {
+            "to": 32,
+            "colour": "#e6e1d6",
+            "material": "classic"
+          },
+          {
+            "colour": "#45494f",
+            "material": "metal"
+          }
+        ]
+      },
+      "sources": [
+        "https://en.wikipedia.org/wiki/Montelbaanstoren"
+      ]
+    },
+    "57857592": {
+      "name": "Oude Kerk",
+      "stripes": {
+        "colours": [
+          "#7d5f50"
+        ],
+        "bands": [
+          {
+            "to": 22,
+            "colour": "#7d5f50",
+            "material": "classic"
+          },
+          {
+            "to": 40,
+            "colour": "#b5ad9c",
+            "material": "classic"
+          },
+          {
+            "colour": "#5b6068",
+            "material": "metal"
+          }
+        ]
+      },
+      "_note": "weathered brown brick, sandstone tower stage, lead-clad timber spire; lead roofs (photo roofs #87919f)",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Amsterdam-508-Oude_Kerk-2010-gje.jpg"
+      ]
+    },
+    "220749328": {
+      "name": "Nieuwe Kerk",
+      "wall": {
+        "colour": "#a88a62",
+        "material": "classic"
+      },
+      "_note": "buff sandstone and yellowish brick (photo #9c7b50 at dusk); blue-grey slate roofs come from the ortho",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Iglesia_Nueva,_Ámsterdam,_Países_Bajos,_2016-05-30,_DD_10-12_HDR.jpg"
+      ]
+    },
+    "Koninklijk Paleis": {
+      "wall": {
+        "colour": "#857463",
+        "material": "classic"
+      },
+      "_note": "Bentheimer sandstone weathered brown-grey (photo #756557, overcast)",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Paleis_op_de_Dam_2026.jpg"
+      ]
+    },
+    "431070185": {
+      "name": "Rijksmuseum (1885, Pierre Cuypers)",
+      "stripes": {
+        "colours": [
+          "#8a4a3a"
+        ],
+        "bands": [
+          {
+            "repeat": [
+              [
+                4,
+                "#8a4a3a",
+                "classic"
+              ],
+              [
+                1,
+                "#d6cbb5",
+                "classic"
+              ]
+            ]
+          }
+        ]
+      },
+      "_note": "red brick with cream sandstone bands floor by floor; slate roofs from the ortho",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:South_facade_of_the_Rijksmuseum_Amsterdam_(DSCF0528).jpg"
+      ]
+    },
+    "57856845": {
+      "name": "Amsterdam Centraal (1889, Cuypers and Van Gendt)",
+      "_note": "red brick with cream stone bands (photo mix #956a5a); the outline takes in the whole platform area, so a plain wall colour rather than area-wide bands",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Amsterdam_Centraal_2016-09-13.jpg"
+      ],
+      "wall": {
+        "colour": "#8f4f3c",
+        "material": "classic"
+      },
+      "year": 1889
+    },
+    "Beurs van Berlage": {
+      "wall": {
+        "colour": "#8e4a33",
+        "material": "classic"
+      },
+      "_note": "Berlage's plain red-orange brick (photo, sunlit side)",
+      "sources": [
+        "https://commons.wikimedia.org/wiki/File:Beurs_van_Berlage_in_Amsterdam_2019.png"
+      ]
+    },
+    "57856769": {
+      "name": "NEMO (1997, Renzo Piano)",
+      "wall": {
+        "colour": "#5f9e8c",
+        "material": "metal"
+      },
+      "_note": "pre-oxidised green copper cladding; the sloping roof is a public stone-paved square (ortho)",
+      "sources": [
+        "https://en.wikipedia.org/wiki/NEMO_(museum)"
+      ]
+    },
+    "269000174": {
+      "name": "Koninklijk Theater Carré (1887)",
+      "wall": {
+        "colour": "#e8e2d2",
+        "material": "classic"
+      },
+      "_note": "cream stucco classical front on the Amstel",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Royal_Theatre_Carr%C3%A9"
+      ]
+    },
+    "Schreierstoren": {
+      "wall": {
+        "colour": "#6e4434",
+        "material": "classic"
+      },
+      "sources": [
+        "https://en.wikipedia.org/wiki/Schreierstoren"
+      ]
+    },
+    "Waag": {
+      "wall": {
+        "colour": "#7a5444",
+        "material": "classic"
+      },
+      "sources": [
+        "https://en.wikipedia.org/wiki/Waag_(Amsterdam)"
+      ],
+      "year": 1488
+    },
+    "451533145": {
+      "name": "Zuidkap",
+      "roof": {
+        "colour": "#8b97a0",
+        "material": "glass"
+      },
+      "wall": {
+        "colour": "#8b97a0",
+        "material": "glass"
+      },
+      "_note": "the train sheds: iron and glass arches",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Amsterdam_Centraal_station"
+      ]
+    },
+    "451533147": {
+      "name": "Middenkap",
+      "roof": {
+        "colour": "#8b97a0",
+        "material": "glass"
+      },
+      "wall": {
+        "colour": "#8b97a0",
+        "material": "glass"
+      }
+    }
+  }
+}

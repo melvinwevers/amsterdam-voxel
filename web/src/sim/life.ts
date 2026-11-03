@@ -18,6 +18,7 @@ const BLEND = 7;
 const BOX_IN = 7, BOX_OUT = 9;
 const STEP = 1 / 30;
 const TRAM = { sec: 10.5, gap: 0.6, n: 3, v: 11, a: 1.0, b: 1.6, headway: 300 };
+export const CARS_FROM = 1920, TRAMS_FROM = 1900;
 const TRAM_LEN = TRAM.n * (TRAM.sec + TRAM.gap);
 const ACTIVE_R = 900;
 const CAR_COLOURS = ['#f0f0ee', '#e9e9e7', '#1c1c1e', '#2a2c30', '#8e9399', '#b9bcc0', '#5d6670', '#9b2a24', '#24467a', '#3d5a3a', '#c9b48e', '#6e1f2a'];
@@ -47,6 +48,9 @@ export class StreetLife {
   readonly peds: PedEdge[];
   readonly cars: Car[] = [];
   readonly trams: Tram[] = [];
+  // the year slider: no cars before 1920 (Amsterdam's first were around 1900, common from the 1920s), no trams
+  // before 1900 (horse trams ran from 1875, electric ones from 1900); Infinity = today
+  year = Infinity;
   people: Person[] = [];
   private t = 0;
   private hour = 12;
@@ -105,9 +109,9 @@ export class StreetLife {
     const hh = this.hour = ((hour % 24) + 24) % 24;
     const bell = (c: number, w: number) => Math.exp(-(((hh - c) / w) ** 2));
     const density = {
-      cars: Math.min(1, 0.18 + 0.55 * bell(8, 2.2) + 0.5 * bell(17, 2.6) + 0.45 * bell(13, 5)),
+      cars: this.year < CARS_FROM ? 0 : Math.min(1, 0.18 + 0.55 * bell(8, 2.2) + 0.5 * bell(17, 2.6) + 0.45 * bell(13, 5)),
       peds: Math.min(1, 0.08 + 0.4 * bell(8.5, 1.8) + 0.85 * bell(16, 4.5) + 0.25 * bell(21, 2)),
-      trams: hh > 0.5 && hh < 5 ? 0 : 1,
+      trams: this.year < TRAMS_FROM || (hh > 0.5 && hh < 5) ? 0 : 1,
     };
     this.acc += dt;
     while (this.acc >= STEP) { this.step(STEP, density); this.acc -= STEP; }
@@ -587,8 +591,8 @@ export class StreetLife {
   // positions between the last two ticks (lead: time since the last one), so motion is smooth at any frame rate
   private render(dt: number, night: number, lead: number) {
     const back = 1 - lead / STEP;
-    this.drawCars(back, night);
-    this.drawTrams(back, night);
+    if (this.year < CARS_FROM) setCount(0, this.M.body, this.M.dark, this.M.head, this.M.tail); else this.drawCars(back, night);
+    if (this.year < TRAMS_FROM) setCount(0, this.M.tram, this.M.tramWin); else this.drawTrams(back, night);
     const n = this.drawPeople(dt, lead);
     const nd = drawDancers(this.M, n, MAX_PEOPLE, this.t, this.hour, this.world?.groundAt(DANCE.x, DANCE.y) ?? 0);
     setCount(n + nd, this.M.legs, this.M.torso);

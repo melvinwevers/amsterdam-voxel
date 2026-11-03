@@ -9,6 +9,7 @@
 Every tree gets a stable id: the city inventory number ("D598322"), else "osm:<node id>", else "um:<numer_inw>".
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -17,9 +18,9 @@ from pyproj import Transformer
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).parent))
-from aoi import D, RAW, W, to_grid  # noqa: E402
+from aoi import CRS, D, RAW, W, to_grid  # noqa: E402
 
-T4326 = Transformer.from_crs(4326, 2180, always_xy=True)
+T4326 = Transformer.from_crs(4326, CRS, always_xy=True)
 
 
 def _num(v):
@@ -32,6 +33,20 @@ def _num(v):
 def load(osm_trees):
     """osm_trees: [(oid, tags, Point(col, row))] from voxelize's OSM reader. Returns a list of dicts with grid x, y."""
     out = []
+    ams_f = Path(RAW) / "trees" / "bomen.geojson"  # Amsterdam's register (fetch_bomen.py), EPSG:28992
+    if ams_f.exists():
+        for f in json.load(open(ams_f))["features"]:
+            p, gm = f["properties"], f["geometry"]
+            if not gm:
+                continue
+            c, r = to_grid(*gm["coordinates"][:2])
+            if not (0 <= c < W and 0 <= r < D):
+                continue
+            hc = re.findall(r"\d+", p.get("boomhoogteklasseActueel") or "")  # "d. 12 tot 15 m." -> 13.5
+            out.append(dict(id=f"ams:{p['id']}", src="ams", x=float(c), y=float(r), species=p.get("soortnaam"),
+                            species_pl=p.get("soortnaamTop"), trunk_cm=None,
+                            height=sum(map(float, hc[:2])) / len(hc[:2]) if hc else None,
+                            manager=p.get("typeBeheerderPlus"), date=str(p.get("jaarVanAanleg") or "")))
     bos_f = Path(RAW) / "trees" / "bos_trees.json"
     if bos_f.exists():
         for t in json.load(open(bos_f)):

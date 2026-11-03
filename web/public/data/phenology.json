@@ -1,6 +1,6 @@
 {
  "city": {
-  "leaf": 115,
+  "leaf": 114,
   "colour": 289,
   "fall": 306
  },
@@ -23,13 +23,13 @@
     "source": "iNaturalist, -5 d to the DWD scale"
    },
    "colour": {
-    "day": 279.94854912764004,
+    "day": 279.4944938371244,
     "sd": 11.696682912226754,
-    "n": 172,
+    "n": 179,
     "source": "iNaturalist, +10 d to the DWD scale"
    },
    "fall": {
-    "day": 296.94854912764004,
+    "day": 296.4944938371244,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "colouring + 17 d (the DWD's median gap)"
@@ -48,13 +48,13 @@
     "source": "iNaturalist, -5 d to the DWD scale"
    },
    "colour": {
-    "day": 301.9320202020202,
+    "day": 301.91927259818635,
     "sd": 11.696682912226754,
     "n": 21,
     "source": "iNaturalist, +10 d to the DWD scale"
    },
    "fall": {
-    "day": 318.9320202020202,
+    "day": 318.91927259818635,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "colouring + 17 d (the DWD's median gap)"
@@ -73,13 +73,13 @@
     "source": "DWD"
    },
    "colour": {
-    "day": 288.7860101010101,
+    "day": 288.5909922312966,
     "sd": 11.696682912226754,
     "n": 0,
     "source": "median of the classes"
    },
    "fall": {
-    "day": 305.7860101010101,
+    "day": 305.5909922312966,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "median of the classes"
@@ -99,13 +99,13 @@
     "source": "median of the classes"
    },
    "colour": {
-    "day": 288.7860101010101,
+    "day": 288.5909922312966,
     "sd": 11.696682912226754,
     "n": 0,
     "source": "median of the classes"
    },
    "fall": {
-    "day": 305.7860101010101,
+    "day": 305.5909922312966,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "median of the classes"
@@ -225,9 +225,9 @@
     "source": "DWD"
    },
    "colour": {
-    "day": 263.235390988537,
+    "day": 263.2985829430139,
     "sd": 11.696682912226754,
-    "n": 46,
+    "n": 47,
     "source": "iNaturalist, +10 d to the DWD scale"
    },
    "fall": {
@@ -275,13 +275,13 @@
     "source": "iNaturalist, -5 d to the DWD scale"
    },
    "colour": {
-    "day": 329.9320202020202,
+    "day": 329.91927259818635,
     "sd": 11.696682912226754,
     "n": 35,
     "source": "iNaturalist, +10 d to the DWD scale"
    },
    "fall": {
-    "day": 346.9320202020202,
+    "day": 346.91927259818635,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "colouring + 17 d (the DWD's median gap)"
@@ -300,13 +300,13 @@
     "source": "DWD"
    },
    "colour": {
-    "day": 288.7860101010101,
+    "day": 288.5909922312966,
     "sd": 11.696682912226754,
     "n": 0,
     "source": "median of the classes"
    },
    "fall": {
-    "day": 305.7860101010101,
+    "day": 305.5909922312966,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "median of the classes"
@@ -325,13 +325,13 @@
     "source": "iNaturalist, -5 d to the DWD scale"
    },
    "colour": {
-    "day": 291.5720202020202,
+    "day": 291.1819844625931,
     "sd": 11.696682912226754,
-    "n": 47,
+    "n": 49,
     "source": "iNaturalist, +10 d to the DWD scale"
    },
    "fall": {
-    "day": 308.5720202020202,
+    "day": 308.1819844625931,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "colouring + 17 d (the DWD's median gap)"
@@ -348,13 +348,13 @@
     "source": "median of the classes"
    },
    "colour": {
-    "day": 288.7860101010101,
+    "day": 288.5909922312966,
     "sd": 11.696682912226754,
     "n": 0,
     "source": "median of the classes"
    },
    "fall": {
-    "day": 305.7860101010101,
+    "day": 305.5909922312966,
     "sd": 11.337930705380412,
     "n": 0,
     "source": "median of the classes"

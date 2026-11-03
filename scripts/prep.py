@@ -1,4 +1,9 @@
-"""Mosaic GUGiK 2025 DSM (0.5 m), DTM (1 m) and orthophoto, then resample onto the rotated AOI grid.
+"""Mosaic AHN DSM + DTM (0.5 m, scripts/fetch_ahn.py) and the PDOK orthophoto (scripts/fetch_ortho.py), fill AHN's
+gaps, then resample onto the AOI grid.
+
+AHN leaves holes the GUGiK models did not: the DSM has none over water (water points are left out), the DTM none under
+buildings, bridges and water (ground points only). Water (no DSM and no DTM) is set to the canal level, the rest of
+the DTM is filled from the nearest ground, and the DSM over water takes the filled DTM.
 
 Outputs (row 0 = grid row 0): dsm at 0.5 m, dtm at 1 m, orto at 0.2 m.
 """
@@ -31,7 +36,7 @@ def mosaic(pattern, res, nodata=-9999):
 
 
 def mosaic_rgb(pattern, res):
-    # sheets carry slightly different WKT for EPSG:2180, so paste windows manually
+    # paste windows manually (the GUGiK sheets carried slightly different WKT for one CRS; harmless here)
     out = np.zeros((round((MAXY - MINY) / res), round((MAXX - MINX) / res), 3), np.uint8)
     for p in sorted(glob.glob(f"{RAW}/{pattern}")):
         with rasterio.open(p) as r:
@@ -68,14 +73,30 @@ def resample(src, src_res, out_res, order, band=1024, origin=None):
     return out
 
 
-_m, _t = mosaic("dsm_*.asc", 0.5)
-dsm = resample(_m[0].astype(np.float32), 0.5, 0.5, order=0, origin=(_t.c, _t.f))  # nearest keeps spires
-_m, _t = mosaic("dtm_*.asc", 1.0)
-dtm = resample(_m[0].astype(np.float32), 1.0, 1.0, order=1, origin=(_t.c, _t.f))
-del _m
+WATER_NAP = -0.4  # Amsterdam's canals and the IJ are held at NAP -0.40 m
+
+
+def fill_ahn(dsm, dtm):
+    hole_s, hole_t = ~(np.abs(dsm) < 1000), ~(np.abs(dtm) < 1000)
+    water = hole_s & hole_t
+    _, (ri, ci) = ndimage.distance_transform_edt(hole_t, return_indices=True)
+    dtm = dtm[ri, ci]
+    dtm[water] = WATER_NAP
+    dsm = np.where(hole_s, dtm, dsm)
+    print("AHN holes filled: water %.1f%%, ground under structures %.1f%%" % (100 * water.mean(), 100 * (hole_t & ~water).mean()))
+    return dsm, dtm
+
+
+_s, _t = mosaic("ahn/dsm_*.tif", 0.5)
+_g, _tg = mosaic("ahn/dtm_*.tif", 0.5)
+assert _t == _tg and _s.shape == _g.shape
+_s, _g = fill_ahn(_s[0].astype(np.float32), _g[0].astype(np.float32))
+dsm = resample(_s, 0.5, 0.5, order=0, origin=(_t.c, _t.f))  # nearest keeps spires
+dtm = resample(_g, 0.5, 1.0, order=1, origin=(_t.c, _t.f))
+del _s, _g
 for n, a in (("dsm", dsm), ("dtm", dtm)):
     print(n, a.shape, float(a[a > -1000].min()), float(a.max()), int((a < -1000).sum()), "nodata")
-orto = resample(mosaic_rgb("orto_*.tif", 0.2), 0.2, 0.2, order=1)
+orto = resample(mosaic_rgb("ortho/2026_orthoHR_*.tif", 0.2), 0.2, 0.2, order=1)
 print("orto", orto.shape, orto.reshape(-1, 3).mean(0), int((orto.sum(-1) == 0).sum()), "empty px")
 np.savez_compressed("data/prep.npz", dsm=dsm, dtm=dtm, orto=orto)
 from PIL import Image

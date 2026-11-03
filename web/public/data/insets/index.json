@@ -1,0 +1,173 @@
+{
+ "source": "Kadaster 3D Basisvoorziening DSM 20 cm (2025), PDOK; colours from the 1 m model",
+ "insets": [
+  {
+   "key": "westertoren",
+   "x0": 974,
+   "y0": 1097,
+   "N": 33,
+   "r": 0.5,
+   "bld": [
+    6831
+   ],
+   "year": 1631,
+   "file": "insets/westertoren.bin"
+  },
+  {
+   "key": "westerkerk",
+   "x0": 976,
+   "y0": 1076,
+   "N": 130,
+   "r": 0.5,
+   "bld": [
+    187
+   ],
+   "year": 1631,
+   "file": "insets/westerkerk.bin"
+  },
+  {
+   "key": "zuiderkerk",
+   "x0": 2057,
+   "y0": 1557,
+   "N": 110,
+   "r": 0.5,
+   "bld": [
+    337
+   ],
+   "year": 1611,
+   "file": "insets/zuiderkerk.bin"
+  },
+  {
+   "key": "munttoren",
+   "x0": 1630,
+   "y0": 1935,
+   "N": 25,
+   "r": 0.5,
+   "bld": [
+    25430
+   ],
+   "year": 1620,
+   "file": "insets/munttoren.bin"
+  },
+  {
+   "key": "montelbaanstoren",
+   "x0": 2479,
+   "y0": 1384,
+   "N": 34,
+   "r": 0.5,
+   "bld": [
+    9107
+   ],
+   "year": 1517,
+   "file": "insets/montelbaanstoren.bin"
+  },
+  {
+   "key": "schreierstoren",
+   "x0": 2248,
+   "y0": 896,
+   "N": 58,
+   "r": 0.5,
+   "bld": [
+    3366
+   ],
+   "year": 1480,
+   "file": "insets/schreierstoren.bin"
+  },
+  {
+   "key": "oudekerk",
+   "x0": 1929,
+   "y0": 1097,
+   "N": 174,
+   "r": 0.5,
+   "bld": [
+    67
+   ],
+   "year": 1300,
+   "file": "insets/oudekerk.bin"
+  },
+  {
+   "key": "nieuwekerk",
+   "x0": 1491,
+   "y0": 1140,
+   "N": 200,
+   "r": 0.5,
+   "bld": [
+    52
+   ],
+   "year": 1380,
+   "file": "insets/nieuwekerk.bin"
+  },
+  {
+   "key": "paleis",
+   "x0": 1477,
+   "y0": 1219,
+   "N": 176,
+   "r": 0.5,
+   "bld": [
+    42
+   ],
+   "year": 1655,
+   "file": "insets/paleis.bin"
+  },
+  {
+   "key": "rijksmuseum",
+   "x0": 985,
+   "y0": 2650,
+   "N": 359,
+   "r": 0.5,
+   "bld": [
+    10
+   ],
+   "year": 1885,
+   "file": "insets/rijksmuseum.bin"
+  },
+  {
+   "key": "beurs",
+   "x0": 1783,
+   "y0": 984,
+   "N": 280,
+   "r": 0.5,
+   "bld": [
+    18
+   ],
+   "year": 1903,
+   "file": "insets/beurs.bin"
+  },
+  {
+   "key": "waag",
+   "x0": 2109,
+   "y0": 1292,
+   "N": 68,
+   "r": 0.5,
+   "bld": [
+    1577
+   ],
+   "year": 1488,
+   "file": "insets/waag.bin"
+  },
+  {
+   "key": "portugese_synagoge",
+   "x0": 2434,
+   "y0": 1868,
+   "N": 113,
+   "r": 0.5,
+   "bld": [
+    372
+   ],
+   "year": 1675,
+   "file": "insets/portugese_synagoge.bin"
+  },
+  {
+   "key": "concertgebouw",
+   "x0": 618,
+   "y0": 3094,
+   "N": 191,
+   "r": 0.5,
+   "bld": [
+    41
+   ],
+   "year": 1888,
+   "file": "insets/concertgebouw.bin"
+  }
+ ]
+}

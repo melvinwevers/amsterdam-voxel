@@ -1,24 +1,24 @@
 """Area of interest shared by all pipeline steps.
 
-The voxel grid is anchored on the PKiN spire and rotated to the Palace's own axes, so its walls (and the
-Śródmieście street grid, which shares the orientation within ~1°) fall on voxel faces instead of staircases.
-THETA was measured from 443 OSM wall edges of the PKiN complex (weighted mean 21.5°, mod 90).
+Amsterdam's canal belt is a horseshoe, so there is no single street axis to rotate the grid to (Warsaw's 21.5° trick):
+the grid stays on the RD axes (THETA = 0). Walls on the Herengracht/Keizersgracht/Prinsengracht arcs will staircase.
 
-World coords: EPSG:2180 (PL-1992), x = easting, y = northing.
-Grid coords: (i, j) continuous, i = column (along PKiN's E-W facade), j = row (along its N-S facade,
-growing roughly south); cell (c, r) spans [c, c+1) x [r, r+1).
+World coords: EPSG:28992 (RD New, Rijksdriehoek), x = easting, y = northing.
+Grid coords: (i, j) continuous, i = column (east), j = row (growing south); cell (c, r) spans [c, c+1) x [r, r+1).
 """
 import math
 
 import numpy as np
 
-CX, CY = 636965.62, 486975.12  # PKiN spire (OSM way 240119160), EPSG:2180
-THETA = math.radians(21.5)
-# 3950 x 3000 m: from the Rondo ONZ towers east across the Vistula to PGE Narodowy, north to Ogród Saski,
-# south past Trasa Łazienkowska (Al. Armii Ludowej down to Politechnika, Most Łazienkowski). The original 1500 m square around PKiN is the block
-# i in [0, 1500), j in [480, 1980) -- same cells, shifted 480 rows (whole metres, so nothing is resampled).
-W, D = 3950, 3150
-I0, J0 = 750, 1230  # grid position of the PKiN spire
+CITY = "amsterdam"  # selects the curated landmarks, labels and camera presets (scripts/landmarks.py)
+CRS = 28992
+LEAF_OFF = True  # AHN and the PDOK ortho are flown in winter/early spring: bare crowns, no green (voxelize.py)
+CX, CY = 121419.0, 487331.0  # Nationaal Monument op de Dam (read off the 2026 PDOK orthophoto), EPSG:28992
+THETA = math.radians(0.0)
+# 3400 x 3300 m: west past the Westerkerk and the Jordaan, east to Artis and the Plantage, north over Centraal Station
+# onto the IJ, south past the Rijksmuseum to the Vondelpark's edge.
+W, D = 3400, 3300
+I0, J0 = 1700, 1300  # grid position of the Dam monument
 RAW = "data/raw"
 
 EU = np.array([math.cos(THETA), math.sin(THETA)])   # grid +i in world

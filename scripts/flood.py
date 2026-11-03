@@ -86,8 +86,8 @@ with gzip.GzipFile(OUT / "flood.bin", "wb", compresslevel=9, mtime=0) as fh:
 # the gauge Warszawa-Bulwary (IMGW 152210170, by Most Śląsko-Dąbrowski): zero 75.168 m EVRF2007 since 1 Nov 2025 (1 m
 # lower than before: readings from before then +100 cm); the DTM is in PL-KRON86-NH, ~0.18 m below EVRF2007 here
 from pyproj import Transformer
-from aoi import to_grid
-gx, gy = to_grid(*Transformer.from_crs(4326, 2180, always_xy=True).transform(21.0208, 52.2472))
+from aoi import CRS, to_grid
+gx, gy = to_grid(*Transformer.from_crs(4326, CRS, always_xy=True).transform(21.0208, 52.2472))
 zero = 75.168 - 0.18
 lidar_cm = round((np.polyval(fall, gy) - zero) * 100)
 print(f"gauge at grid ({gx:.0f}, {gy:.0f}); the LiDAR-day river there reads {lidar_cm} cm (current scale)")

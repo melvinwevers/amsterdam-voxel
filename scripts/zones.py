@@ -36,11 +36,31 @@ def burn(shapes, dtype=np.uint16, all_touched=False):
 
 
 # buildings (whole buildings, not parts)
-blds = [(g, t) for oid, typ, t, g in osm.areas
+blds = [(g, t, oid) for oid, typ, t, g in osm.areas
         if t.get("building") not in (None, "no") and "building:part" not in t and t.get("location") != "underground"]
 blds.sort(key=lambda b: -b[0].area)  # small ones burnt last stay visible inside big ones
-bld = burn([(g, i + 1) for i, (g, t) in enumerate(blds)])
-print("buildings", len(blds), "columns", int((bld > 0).sum()))
+bld = burn([(g, i + 1) for i, (g, t, _) in enumerate(blds)])
+# each column to the building the voxels were drawn from (voxelize.py), where it says: a shared wall belongs to the
+# house that drew it, not to whichever outline the burn above gave the cell -- else it stands alone when its house is
+# hidden by the viewer's year slider
+_gz = np.load("data/ground.npz")
+if "osm" in _gz:
+    _osm = _gz["osm"]
+    _idx = {oid: i + 1 for i, (_, _, oid) in enumerate(blds)}
+    _u, _inv = np.unique(_osm, return_inverse=True)
+    _lut = np.array([_idx.get(int(o), 0) for o in _u], np.int64)
+    _fromvox = _lut[_inv.reshape(_osm.shape)]
+    print("columns re-assigned to the building they were drawn from", int(((_fromvox > 0) & (_fromvox != bld)).sum()))
+    bld = np.where(_fromvox > 0, _fromvox, bld).astype(bld.dtype)
+# building columns just outside their OSM outline (LiDAR walls, eaves, parts drawn a metre wide) join the nearest
+# outline within 3 m, so they hide with it (the viewer's year slider) instead of standing alone
+_bh = _gz["b"]
+_stray = (_bh > 0) & (bld == 0)
+_d, (_ir, _ic) = ndimage.distance_transform_edt(bld == 0, return_indices=True)
+_join = _stray & (_d <= 3)
+bld[_join] = bld[_ir[_join], _ic[_join]]
+print("buildings", len(blds), "columns", int((bld > 0).sum()), "joined from outside the outlines", int(_join.sum()),
+      "left alone", int((_stray & ~_join).sum()))
 
 # separators: streets (not footways/service), railways, water
 ROADS = {"motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "living_street",
@@ -99,6 +119,19 @@ def stats(lab, n):
     return out
 
 meta = {"blocks": stats(blk, nb), "buildings": stats(bld.astype(np.int32), len(blds))}
+# construction year per building, for the viewer's year slider: the curated year (overrides "year") where BAG's is a
+# restoration's or missing, else OSM's start_date (from the BAG import); 0 = unknown (BAG's 1005 code, or none), shown
+# at every year
+import re
+from landmarks import OVERRIDES
+years = []
+for g, t, oid in blds:
+    o = OVERRIDES.get(str(oid)) or OVERRIDES.get(t.get("name") or "") or {}
+    m = re.match(r"\d{4}", t.get("start_date") or "")
+    y = o.get("year") or (int(m.group()) if m else 0)
+    years.append(0 if y == 1005 else y)
+meta["years"] = years
+print("buildings with a year", sum(1 for y in years if y), "of", len(years))
 # triangles per block at 1 m (prototype estimate): each 128 m tile's triangles (tools/cost1m.mjs) shared by columns
 cost = Path("/private/tmp/claude-501/cost1m.json")
 if cost.exists():

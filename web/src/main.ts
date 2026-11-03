@@ -10,6 +10,8 @@ import { loadWindows } from './windows';
 import { Fountains } from './fountains';
 import { Hud } from './hud';
 import { Labels } from './labels';
+import { loadInsets } from './insets';
+import { Photos } from './photos';
 import { Nav, type Mode, type Ride } from './nav/nav';
 import { makePost } from './post';
 import type { SearchItem } from './search';
@@ -18,7 +20,7 @@ import type { Kind, TrafficData } from './sim/types';
 import { TileStreamer } from './stream';
 import type { Facts, Label, Meta, Place, View } from './types';
 import { dateOf, dayOfYear, hourAt, solarNoon } from './sun';
-import { $, coarsePointer, ease, el, fetchJson, lerp } from './util';
+import { $, coarsePointer, dataTexture, ease, el, fetchGzip, fetchJson, lerp } from './util';
 import { pkinLight } from './sky';
 import { type Climate, Precip, typical, type Weather, WEATHERS } from './weather';
 import type { World } from './world';
@@ -36,6 +38,7 @@ const TODAY = dayOfYear(new Date());
 const DAYS = { midsummer: 172, midwinter: 355, today: TODAY };
 
 const qs = new URLSearchParams(location.search);
+const NOW_YEAR = new Date().getFullYear();
 const engine = pickEngine();
 const renderer = makeRenderer();
 const scene = new THREE.Scene();
@@ -46,7 +49,8 @@ const daylight = new Daylight(renderer, scene);
 const nav = new Nav(camera, controls, renderer.domElement, scene, (v) => flyTo(v), onMode);
 const bar = new Bar({ days: DAYS, weathers: ['typical', ...Object.keys(WEATHERS)], river: RIVER, onDay: (d) => { setDay(d); share(); },
   onDayEnd: () => { if (weatherName === 'typical') setWeather('typical'); },
-  onHour: (h) => { setHour(h); share(); }, onWeather: (w) => { setWeather(w); share(); }, onRiver: (cm) => flood?.setGauge(cm) });
+  onHour: (h) => { setHour(h); share(); }, onWeather: (w) => { setWeather(w); share(); }, onRiver: (cm) => flood?.setGauge(cm),
+  now: NOW_YEAR, yearNote: (y) => mapFor(y)?.title ?? '', onYear: (y) => { setYear(y); share(); } });
 const precip = new Precip(scene);
 const map = new THREE.Box3();
 const tiltShift = qs.get('tilt') !== '0' && innerWidth >= 600 && (engine === 'city' || qs.get('tilt') === '1');
@@ -64,7 +68,7 @@ bar.setRiver(RIVER.typical);
 bar.showRiver(false);
 new ResizeObserver(() => { barRect = null; }).observe(bar.el);
 el('div', '', `<div>by <a href="https://p.migdal.pl/" target="_blank" rel="noopener">Piotr Migdał</a> & <a href="https://quesma.com/blog/invisible-cities-one-shot/" target="_blank" rel="noopener">Opus 5.5</a>, <a href="https://github.com/stared/warsaw-vibe-voxel" target="_blank" rel="noopener">source code</a></div>
-  <div>based on GUGiK 2025 and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></div>`).id = 'credits';
+  <div>based on AHN, PDOK, 3D BAG, gemeente Amsterdam and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></div>`).id = 'credits';
 if (qs.get('ui') === '0') document.body.classList.add('noui');
 addEventListener('resize', onResize);
 addEventListener('keydown', (e) => {
@@ -167,6 +171,38 @@ function stepWeather(now: number) {
   if (k >= 1) fade = null;
 }
 
+// the year slider: buildings (city.ts), street life (no cars before 1920, no trams before 1900) and the historical
+// map of that time on the ground (scripts/fetch_maps.py): the latest one at or before the year, the oldest (1625) for
+// anything earlier
+interface HistMap { year: number; title: string; file: string }
+let histMaps: HistMap[] = [];
+const mapTex = new Map<number, Promise<THREE.Texture>>();
+fetchJson<{ maps: HistMap[] }>('data/maps/index.json').then((d) => { histMaps = d.maps; setYear(bar.year.value); }).catch(() => {});
+const mapFor = (y: number) => (y >= NOW_YEAR || !histMaps.length ? null : [...histMaps].reverse().find((m) => m.year <= y) ?? histMaps[0]);
+let mapShown = 0;
+let fillTex: Promise<THREE.Texture> | null = null;
+function setYear(y: number) {
+  const past = y < NOW_YEAR ? y : Infinity;
+  city?.setYear(past);
+  photos.setYear(y);
+  if (life) life.year = past;
+  const m = mapFor(y), U = uniforms;
+  if (!U) return;
+  // filled-in canals (scripts/dempingen.py): water before their year
+  U.uFillYear.value = Number.isFinite(past) ? past : 1e9;
+  if (Number.isFinite(past) && !fillTex) fillTex = fetchGzip('data/dempingen.bin').then((buf) => {
+    const t = dataTexture(new Uint8Array(buf), Math.ceil(U.uSize.value.x / 2), Math.ceil(U.uSize.value.y / 2), THREE.RedFormat);
+    U.uFill.value = t;
+    return t;
+  });
+  mapShown = m?.year ?? 0;
+  if (!m) { U.uMapOn.value = 0; return; }
+  if (!mapTex.has(m.year)) mapTex.set(m.year, new THREE.TextureLoader().loadAsync(`data/${m.file}`).then((t) => {
+    t.flipY = false; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 8; t.needsUpdate = true; return t;
+  }));
+  mapTex.get(m.year)!.then((t) => { if (mapShown !== m.year) return; U.uMap.value = t; U.uMapOn.value = 1; });
+}
+
 let shareT = 0;
 function share() {
   clearTimeout(shareT);
@@ -175,6 +211,7 @@ function share() {
     qs.set('date', `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
     qs.set('hour', daylight.hour.toFixed(2));
     if (weatherName !== 'typical') qs.set('weather', weatherName); else qs.delete('weather');
+    if (bar.year.value < NOW_YEAR) qs.set('year', String(bar.year.value)); else qs.delete('year');
     history.replaceState(null, '', `?${qs}`);
   }, 400);
 }
@@ -212,7 +249,9 @@ function goView(v: View) {
   flyTo(v);
 }
 
+const photos = new Photos();
 function onLabel(l: Label) {
+  photos.show(l.name, bar.year.value);  // its old pictures, if the archive has any
   const v = Object.values(views).find((w) => w.label === l.name);
   if (v && nav.mode === 'orbit') goView(v);
   else goPlace(l.x, l.y, 60, null, l.name);
@@ -230,8 +269,6 @@ function searchItems(meta: Meta): SearchItem[] {
     ...meta.labels.map((l) => ({ name: l.name, alt: [l.en, l.alt].join(' '), kind: l.kind, go: () => goPlace(l.x, l.y, Math.max(40, (l.R ?? 20) * 1.4), null, l.name) })),
     { name: 'Follow a tram', alt: 'tramwaj tram ride follow jedź', kind: 'action', go: () => followNearest('tram') },
     { name: 'Follow a car', alt: 'samochód car bus autobus ride follow jedź', kind: 'action', go: () => followNearest('car') },
-    { name: 'Zouk at Kopernik', alt: 'dance taniec zouk Centrum Nauki Kopernik evening wieczór', kind: 'action',
-      go: () => { if (daylight.hour < 19 || daylight.hour > 23) setHour(20.5); goPlace(2626, 741, 30, { name: 'Zouk', kind: 'dancing in the evenings' }); } },
     { name: 'Follow someone', alt: 'person people pieszy przechodzień idź walk with follow', kind: 'action', go: () => followNearest('person') },
   ];
 }
@@ -277,17 +314,21 @@ async function boot() {
   }
   labels = new Labels(meta.labels, onLabel);
   if (city) labels.gate = city.gate;
+  if (city && uniforms) loadInsets(uniforms, scene).then((list) => list.forEach((i) => city!.addInset(i.bld, i.mesh))).catch((e) => console.warn('insets', e));
+  const y0 = +(qs.get('year') ?? NOW_YEAR);
+  if (y0 < NOW_YEAR) { bar.year.set(y0); setYear(y0); }
   hud = new Hud(renderer.domElement, nav.mode);
   bar.search.setItems(searchItems(meta));
   fetchJson<{ places: Place[] }>('data/places.json').then(({ places }) => bar.search.setItems([...searchItems(meta),
     ...places.map(([name, kind, x, y, size, alt]) => ({ name, alt, kind, go: () => goPlace(x, y, size, { name, kind }) }))]));
   fountains = new Fountains(scene, meta.jets ?? []);
   flood = new Flood(scene, uniforms, meta);
-  flood.load().then(() => { bar.river.input.disabled = false; flood!.setGauge(RIVER.typical); }).catch((e) => console.warn('flood', e));
+  flood.load().then(() => { bar.river.input.disabled = false; flood!.setGauge(RIVER.typical); }).catch((e) => { console.warn('flood', e); flood = null; });  // no flood.bin (Amsterdam): no river slider
   fetchJson<TrafficData>('data/traffic.json').then((td) => {
     life = nav.life = new StreetLife(scene, td);
     life.world = world;
     window.__life = life;
+    life.year = bar.year.value < NOW_YEAR ? bar.year.value : Infinity;
   });
   $('#loading').classList.add('hidden');
   window.__streamer = streamer;

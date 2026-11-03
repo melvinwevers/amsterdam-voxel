@@ -1,5 +1,6 @@
-"""Every Wikidata item located on the map, with how much people read about it: Polish and English Wikipedia page
-views from October 2025 to September 2026. Independent of whether OSM links to it.
+"""Every Wikidata item located on the map, with how much people read about it: local-language (Polish in Warsaw, Dutch
+in Amsterdam) and English Wikipedia page views from October 2025 to September 2026. Independent of whether OSM links
+to it. The local language keeps the keys "pl"/"plwiki"/"views_pl" that labels.py reads.
 
 Output data/raw/notable.json: {qid: {pl, en, desc, types, at: [lon, lat], plwiki, enwiki, wikis, views, site, facebook}}.
 """
@@ -14,12 +15,13 @@ from pathlib import Path
 import numpy as np
 from pyproj import Transformer
 
-from aoi import RAW, W, D, to_world
+from aoi import CITY, CRS, RAW, W, D, to_world
 
 OUT = Path(RAW) / "notable.json"
+LOCAL = "nl" if CITY == "amsterdam" else "pl"
 UA = {"User-Agent": "warsaw-vibe-voxel/1.0 (https://github.com/stared/warsaw-vibe-voxel)"}
 SPAN = "20251001/20260930"
-SPARQL = """
+SPARQL = ("""
 SELECT ?item ?at ?pl ?en ?desc ?plwiki ?enwiki ?wikis ?site ?fb (GROUP_CONCAT(DISTINCT ?typeLabel; separator="|") AS ?types) WHERE {
   SERVICE wikibase:box { ?item wdt:P625 ?at. bd:serviceParam wikibase:cornerSouthWest "Point(%f %f)"^^geo:wktLiteral;
                                                   wikibase:cornerNorthEast "Point(%f %f)"^^geo:wktLiteral. }
@@ -33,7 +35,7 @@ SELECT ?item ?at ?pl ?en ?desc ?plwiki ?enwiki ?wikis ?site ?fb (GROUP_CONCAT(DI
   OPTIONAL { ?item wdt:P2013 ?fb }
   OPTIONAL { ?item wdt:P31 ?type. ?type rdfs:label ?typeLabel FILTER(LANG(?typeLabel) = "en") }
 } GROUP BY ?item ?at ?pl ?en ?desc ?plwiki ?enwiki ?wikis ?site ?fb
-"""
+""").replace('LANG(?pl) = "pl"', f'LANG(?pl) = "{LOCAL}"').replace("pl.wikipedia.org", f"{LOCAL}.wikipedia.org")
 
 
 def get(url, data=None):
@@ -50,7 +52,7 @@ def get(url, data=None):
 
 def bbox():
     xs, ys = to_world(np.array([0, W, W, 0]), np.array([0, 0, D, D]))
-    lon, lat = Transformer.from_crs(2180, 4326, always_xy=True).transform(xs, ys)
+    lon, lat = Transformer.from_crs(CRS, 4326, always_xy=True).transform(xs, ys)
     return lon.min(), lat.min(), lon.max(), lat.max()
 
 
@@ -90,7 +92,7 @@ def main():
     wd = items()
     print(len(wd), "items on the map")
     for lang in ("pl", "en"):
-        pv = pageviews(lang, [e[f"{lang}wiki"] for e in wd.values() if e[f"{lang}wiki"]])
+        pv = pageviews(LOCAL if lang == "pl" else lang, [e[f"{lang}wiki"] for e in wd.values() if e[f"{lang}wiki"]])
         for e in wd.values():
             e[f"views_{lang}"] = pv.get(e[f"{lang}wiki"], 0) if e[f"{lang}wiki"] else 0
     for e in wd.values():

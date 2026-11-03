@@ -22,7 +22,7 @@ from shapely.geometry import LineString, Point
 from shapely.ops import substring
 from shapely.strtree import STRtree
 
-from aoi import CX, CY, D, THETA, W
+from aoi import CITY, CRS, CX, CY, D, LEAF_OFF, THETA, W
 from osm import OSM
 import landmarks
 
@@ -131,6 +131,35 @@ LEAVES = [pal(c, M_LEAF) for c in ["#a3c65c", "#8db552", "#76a24a", "#618f43", "
                                     "#93bb6a", "#7da95f", "#689655", "#56834c", "#456f43"]]
 WALL_DEFAULTS = ["#d8cfc0", "#cbbfa8", "#e2d6bf", "#c4bbad", "#d9c7a7", "#cdc6ba", "#e6ddcc", "#bdb09b",
                  "#d3c3b0", "#c9c9c2"]
+# Amsterdam: OSM has a colour for 31 of 29 k buildings, but the BAG import gives nearly all a construction year
+# (start_date), and the year predicts the facade: the old centre's brick (red-brown, brown, a few tarred near-black),
+# a minority plastered or painted cream and white (neck and bell gables, 18th-c. Louis fronts); 19th-c. brick with
+# more stucco; the Amsterdam School's dark red-brown brick (1910-40); post-war yellow-brown brick and concrete; mixed
+# modern. Repeats weight the choice.
+AMS_WALLS = [
+    (1850, ["#6f3a2c", "#7d4332", "#8a4b37", "#5d3a2f", "#734436", "#94543d", "#4a3833", "#6a4a3c",
+            "#e6dfd0", "#d8d0bf", "#efe9dc", "#b8ae9a"]),
+    (1910, ["#8a4b37", "#9b5a43", "#7a4434", "#a8664b", "#6f4537", "#d9cfbc", "#e4dccb", "#c9bda4"]),
+    (1945, ["#6b3829", "#76402e", "#5f3527", "#844a33", "#8f5a3e", "#6e4a3b"]),
+    (1980, ["#b59f84", "#a68b6f", "#c7c1b4", "#9a6a52", "#bdb7aa", "#8e7a66"]),
+    (9999, ["#8f5b45", "#c9c4ba", "#6f6b66", "#d8d3c8", "#a86c4f", "#4f4c49", "#b7a58d"]),
+]
+
+
+def ams_wall(f):
+    """a building's parts share one colour (keyed by the whole building); plaster and paint only on house-sized
+    footprints -- churches, museums and blocks are brick -- and the brick a shade darker than the swatches, which
+    read orange in the renderer's sun"""
+    y = re.match(r"\d{4}", tag(f, "start_date") or "")
+    year = int(y.group()) if y else 1700
+    cols = [hex_rgb(c) for c in next(c for limit, c in AMS_WALLS if year < limit)]
+    whole = f.get("parent") or f
+    lum_ = lambda c: 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+    big = len(whole["rr"]) > 300 or tag(f, "building") in SACRED or tag(f, "amenity") == "place_of_worship"
+    if big and any(lum_(c) < 150 for c in cols):
+        cols = [c for c in cols if lum_(c) < 150]
+    c = cols[stable_hash(whole["id"]) % len(cols)]
+    return tuple(int(v * 0.85) for v in c) if lum_(c) < 150 else c
 
 # ---------------------------------------------------------------- rasters
 z = np.load("data/prep.npz")
@@ -482,7 +511,7 @@ for p in parts:
     p["render"] = True
 render = [f for f in feats if f["render"]]
 
-pkin = next(f for f in feats if f["tags"].get("name") == "Pałac Kultury i Nauki")
+pkin = next((f for f in feats if f["tags"].get("name") == "Pałac Kultury i Nauki"), None)  # Warsaw only
 
 
 def tag(f, k):
@@ -493,8 +522,10 @@ def tag(f, k):
 
 
 bmask = np.zeros((D, W), bool)
+bosm = np.zeros((D, W), np.int64)  # the OSM outline (a part's parent) each building column was drawn from, for zones.py
 for f in render:
     bmask[f["rr"], f["cc"]] = True
+    bosm[f["rr"], f["cc"]] = (f.get("parent") or f)["id"]
 
 # feature-level source decision (LiDAR 2025 vs OSM 2026)
 top = np.where(bmask, nd_max_b, 0.0).astype(np.float32)
@@ -660,7 +691,7 @@ def wall_style(f):
         (parse_colour(f["parent"]["tags"].get("building:colour")) if f.get("parent") else None)
     btype = tag(f, "building") or ""
     h = f["maxh"] or float(np.median(top[f["rr"], f["cc"]]))
-    inside_pkin = pkin["geom"].contains(f["geom"].representative_point())
+    inside_pkin = pkin is not None and pkin["geom"].contains(f["geom"].representative_point())
     if inside_pkin:
         # OSM tags the stone #C6AE7F, a khaki; in photos the weathered sandstone is a mid warm grey (median 118,112,104 overcast, 2026)
         if col is None or col == hex_rgb("#c6ae7f"):
@@ -675,7 +706,7 @@ def wall_style(f):
     if mat_tag in ("brick",) and col is None:
         col = hex_rgb("#a95f45")
     if col is None:
-        col = hex_rgb(WALL_DEFAULTS[stable_hash(f["id"]) % len(WALL_DEFAULTS)])
+        col = ams_wall(f) if CITY == "amsterdam" else hex_rgb(WALL_DEFAULTS[stable_hash(f["id"]) % len(WALL_DEFAULTS)])
     if btype in SACRED or tag(f, "amenity") == "place_of_worship":
         return pal(soften(col), M_CLASSIC)  # stone or brick, tall windows: not the shader's office grid of storeys
     return pal(soften(col), M_WALL)
@@ -689,7 +720,7 @@ def roof_style(f):
     if col is None and (f["tags"].get("roof:material") or "").lower() == "glass":
         return pal(soften(hex_rgb("#93adbf"), 0.06), M_GLASS)  # glass atrium roofs (Politechnika's hall): blue-grey
     h = float(np.median(top[f["rr"], f["cc"]]))
-    if pkin["geom"].contains(f["geom"].representative_point()) and col == hex_rgb("#666666"):
+    if pkin is not None and pkin["geom"].contains(f["geom"].representative_point()) and col == hex_rgb("#666666"):
         # OSM's dark grey: the ortho shows light stone-grey roofs (its own colours carry the tower's shadow)
         return pal(soften(hex_rgb("#bab3a5"), 0.05), M_ROOF, q=12)
     if h < 40:
@@ -916,10 +947,32 @@ all_trees, _tc = treedb.load(trees)
 note("trees from the databases:", _tc, "total", len(all_trees))
 tree_rc = np.array([(int(t["y"]), int(t["x"])) for t in all_trees])
 near_tree = np.zeros((D, W), bool)
+nd_veg = nd_mean
 if len(tree_rc):
     near_tree[tree_rc[:, 0], tree_rc[:, 1]] = True
     near_tree = ndimage.binary_dilation(near_tree, iterations=3)
-veg = (~bmask) & (nd_mean > 2.2) & ((exg > 0.025) | (near_tree & (exg > -0.03)))
+if LEAF_OFF and len(tree_rc):
+    # leaf-off LiDAR (AHN) sees bare branches: the mean of a cell's four samples is mostly the ground through them
+    # (3 m median at known trunks), the 3x3 max of the per-sample maxima keeps the branches (~0.77 x the register's
+    # height). And a leaf-off ortho has no green to confirm a crown. So around every known tree: a crown disc of radius
+    # ~0.3 x its height (2.5-7 m), filled where the branches reach above 2.5 m, at the branches' height, smoothed.
+    _nd3 = ndimage.maximum_filter(dsm_max - dtm, 3)
+    _ok = (tree_rc[:, 0] < D) & (tree_rc[:, 1] < W)
+    _h = np.array([t.get("height") or 0 for t in all_trees], np.float32)[_ok]
+    _rc = tree_rc[_ok]
+    _h = np.maximum(_h, _nd3[_rc[:, 0], _rc[:, 1]])
+    _rad = np.clip(0.3 * _h, 2.5, 7.0)
+    near_tree[:] = False
+    for k in np.unique(np.round(_rad).astype(int)):
+        m_ = np.zeros((D, W), bool)
+        sel = np.round(_rad).astype(int) == k
+        m_[_rc[sel, 0], _rc[sel, 1]] = True
+        yy, xx = np.mgrid[-k:k + 1, -k:k + 1]
+        near_tree |= ndimage.binary_dilation(m_, structure=(yy ** 2 + xx ** 2) <= k * k)
+    _sm = ndimage.gaussian_filter(np.where(near_tree, _nd3, 0), 1.5) / np.maximum(ndimage.gaussian_filter(near_tree.astype(np.float32), 1.5), 1e-3)
+    nd_veg = np.where(near_tree & (_nd3 > 2.5), np.maximum(_sm, nd_mean), nd_mean).astype(np.float32)
+    note("leaf-off canopy: crown cells around known trees", int((near_tree & (_nd3 > 2.5)).sum()))
+veg = (~bmask) & (nd_veg > 2.2) & ((exg > 0.025) | (near_tree & (exg > -0.03 if not LEAF_OFF else True)))
 # nor inside any building's outline: one drawn only through its parts (Salvator church) left the cells between its
 # parts out of bmask, and its green copper roof grew 1 800 leaf voxels, pillars up its front
 _allb = np.zeros((D, W), bool)
@@ -931,11 +984,11 @@ veg &= ~_allb
 # LiDAR wall edges outside OSM footprints look like tall "trees": reject cells next to a building
 # whose height is close to that building's roof
 btop_near = ndimage.maximum_filter(np.where(bmask, topi, 0), size=7)
-wall_edge = (btop_near > 0) & (nd_mean > 0.6 * btop_near) & (nd_mean > 6)
-veg &= ~wall_edge | (near_tree & (nd_mean < 25))
-step = ndimage.maximum_filter(nd_mean, 3) - ndimage.minimum_filter(nd_mean, 3)
-veg &= ~((btop_near > 0) & (step > 7) & (nd_mean > 0.5 * btop_near))
-veg &= nd_mean < 32  # no trees taller than ~30 m in central Warsaw
+wall_edge = (btop_near > 0) & (nd_veg > 0.6 * btop_near) & (nd_veg > 6)
+veg &= ~wall_edge | (near_tree & (nd_veg < 25))
+step = ndimage.maximum_filter(nd_veg, 3) - ndimage.minimum_filter(nd_veg, 3)
+veg &= ~((btop_near > 0) & (step > 7) & (nd_veg > 0.5 * btop_near))
+veg &= nd_veg < 32  # no trees taller than ~30 m in central Warsaw
 # no trees growing out of a stadium shell (its fins and roof edge are LiDAR-high and greenish in the ortho)
 stad = np.zeros((D, W), np.uint16)
 burn(stad, [(geom, 1) for oid, typ, t, geom in osm.areas_with("leisure", ("stadium",))])
@@ -945,14 +998,14 @@ note("wall-edge cells rejected as vegetation:", int(wall_edge.sum()))
 lab, n = ndimage.label(veg)
 sizes = ndimage.sum(veg, lab, range(1, n + 1))
 veg &= np.isin(lab, np.nonzero(sizes >= 4)[0] + 1)
-hs = ndimage.gaussian_filter(np.where(veg, nd_mean, 0), 2) / np.maximum(ndimage.gaussian_filter(veg.astype(float), 2), 1e-3)
-crown_top = np.round(np.minimum(nd_mean, 40)).astype(np.int32)
+hs = ndimage.gaussian_filter(np.where(veg, nd_veg, 0), 2) / np.maximum(ndimage.gaussian_filter(veg.astype(float), 2), 1e-3)
+crown_top = np.round(np.minimum(nd_veg, 40)).astype(np.int32)
 # against a wall the DSM is the wall's (Telecom tower, Salvator: 1 m green pillars 20-30 m up the facades): within 2 m
 # of a building a crown is no taller than its canopy away from the walls (gaussian mean x 1.25 + 2 m), 12 m with none
 _nearb = ndimage.binary_dilation(bmask, iterations=2) & veg
 _far = veg & ~ndimage.binary_dilation(bmask, iterations=2)
 _wf = ndimage.gaussian_filter(_far.astype(np.float32), 3)
-_hf = ndimage.gaussian_filter(np.where(_far, nd_mean, 0).astype(np.float32), 3) / np.maximum(_wf, 1e-3)
+_hf = ndimage.gaussian_filter(np.where(_far, nd_veg, 0).astype(np.float32), 3) / np.maximum(_wf, 1e-3)
 _cap = np.where(_wf > 0.05, _hf * 1.25 + 2, 12)
 _clip = _nearb & (crown_top > _cap)
 crown_top = np.where(_clip, np.round(_cap), crown_top).astype(np.int32)
@@ -1587,7 +1640,8 @@ _ids = vol[g - 1, np.arange(D)[:, None], np.arange(W)[None, :]]
 _lut = np.array([e[:3] for e in pal.entries], np.uint8)
 _lut[[i for i, e in enumerate(pal.entries) if e[3] == M_GRASS]] = _lut[C["bare"]]
 np.savez_compressed("data/ground.npz", g=g.astype(np.int16), rgb=_lut[_ids],
-                    b=np.where(bmask, topi, 0).astype(np.int16))  # building height above ground (photo-pose tools)
+                    b=np.where(bmask, topi, 0).astype(np.int16),  # building height above ground (photo-pose tools)
+                    osm=bosm)
 import tiles
 EXPORT_IDS = dict(keep_ids={i for i, e in enumerate(pal.entries) if e[3] == M_LAMP},
                          skip_ids={i for i, e in enumerate(pal.entries) if e[3] == M_LEAF} | {C["trunk"]},
@@ -1618,7 +1672,7 @@ for ln in sorted(tram_lines, key=lambda l: -l.length):
         path.append([round(p.x, 1), round(p.y, 1), int(g[r, c])])
     trams.append(path)
 note("tram paths:", len(trams), "total km", round(sum(len(p) for p in trams) * 2 / 1000, 2))
-meta = dict(W=W, D=D, H=Hm, base=BASE, tiles=tile_info, center=[CX, CY], theta_deg=math.degrees(THETA), crs="EPSG:2180", trams=trams, jets=jets,
+meta = dict(W=W, D=D, H=Hm, base=BASE, tiles=tile_info, center=[CX, CY], theta_deg=math.degrees(THETA), crs=f"EPSG:{CRS}", trams=trams, jets=jets,
             palette=[list(e) for e in pal.entries], lamps=lamps, floods=floods, labels=labels, views=views,
             sources=dict(osm=osm.timestamp, lidar="GUGiK NMPT/NMT 2025 (GK-FOTO.6201.5.2025)",
                          ortho="GUGiK ortofotomapa 2025, 5 cm"))

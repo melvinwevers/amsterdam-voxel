@@ -122,7 +122,8 @@ def adjust_heights(top, feats, note):
 MAT_IDS = {"solid": 0, "wall": 1, "glass": 2, "metal": 6, "pkin": 7, "grass": 8, "roof": 12, "concrete": 13,
            "bronze_grid": 15, "sign": 16, "sign_band": 18, "ribbon": 19, "classic": 20, "window": 21}
 VARSO = Point(244, 1414)  # Varso Tower spire, grid
-OVERRIDES = json.load(open(Path(__file__).with_name("overrides.json")))["buildings"]
+from aoi import CITY  # noqa: E402
+OVERRIDES = json.load(open(Path(__file__).with_name("overrides_amsterdam.json" if CITY == "amsterdam" else "overrides.json")))["buildings"]
 
 
 def _hex(h):
@@ -265,9 +266,9 @@ def apply_stripes(vol, g, bmask, pal, osm, cells_of, note):
                         per = sum(n for n, _ in kind)
                         ph = (hz[sel] - lo) % per
                         o_, acc = np.zeros(int(sel.sum()), out.dtype), 0
-                        for n, cid in kind:
-                            o_[(ph >= acc) & (ph < acc + n)] = cid
-                            acc += n
+                        for m_, cid in kind:  # (not n: that counts the columns)
+                            o_[(ph >= acc) & (ph < acc + m_)] = cid
+                            acc += m_
                         out[sel] = o_
                     else:
                         out[sel] = kind
@@ -488,6 +489,8 @@ def small_tree(vol, g, r, c, h, leaves, trunk, height=None):
 
 def details_geometry(vol, g, feats, pal, note):
     """Every curated change to the landmarks' voxels (also run alone by patch.py on the cached volume)."""
+    if CITY != "warsaw":
+        return
     pkin_clock(vol, g, feats, pal, note)
     regularize_walls(vol, g, feats, note)
     teatr_wielki_centre(vol, g, pal, note)
@@ -633,6 +636,49 @@ def details(vol, g, top, topi, bmask, feats, pal, C, osm, cells_of, note, leaf_i
     note("labels:", [l["name"] for l in labels])
     return labels, make_views(found, osm, g, top_at, note, bmask, vol, leaf_ids)
 
+from aoi import CITY  # noqa: E402
+
+if CITY == "amsterdam":
+    LABELS = {
+        "Koninklijk Paleis": dict(en="Royal Palace", kind="palace", year=1655, by="Jacob van Campen", alt="Paleis op de Dam", anchor="top"),
+        "Nationaal Monument": dict(kind="war memorial", year=1956, alt="Dam monument"),
+        "Westerkerk": dict(kind="church", height=85, year=1631, alt="Westertoren", anchor="top"),
+        "Zuiderkerk": dict(kind="church", height=61, year=1611, anchor="top"),
+        "Oude Kerk": dict(en="Old Church", kind="church", year=1306, anchor="top"),
+        "Munttoren": dict(en="Mint Tower", kind="tower", year=1620, anchor="top"),
+        "Montelbaanstoren": dict(kind="tower", year=1516, anchor="top"),
+        "Schreierstoren": dict(kind="tower", year=1487),
+        "Waag": dict(en="Weigh House", kind="city gate", year=1488, alt="Nieuwmarkt"),
+        "Beurs van Berlage": dict(kind="exchange", year=1903, by="H.P. Berlage"),
+        "Rijksmuseumgebouw": dict(name="Rijksmuseum", kind="museum", year=1885, by="Pierre Cuypers", anchor="top"),
+        "Stedelijk Museum Amsterdam": dict(name="Stedelijk Museum", kind="museum", year=1895),
+        "Concertgebouw": dict(kind="concert hall", year=1888),
+        "Anne Frank Huis": dict(en="Anne Frank House", kind="museum"),
+        "Noorderkerk": dict(kind="church", year=1623),
+        "Portugese Synagoge": dict(en="Portuguese Synagogue", kind="synagogue", year=1675),
+        "Nationale Opera en Ballet": dict(kind="opera house", year=1986, alt="Stopera Muziektheater"),
+        "Magere Brug": dict(en="Skinny Bridge", kind="bascule bridge", year=1934),
+        "Stadsschouwburg Amsterdam": dict(name="Stadsschouwburg", kind="theatre", year=1894),
+        "Begijnhof": dict(kind="courtyard", year=1346),
+        "Bloemenmarkt": dict(en="Flower Market", kind="market"),
+        "Artis": dict(kind="zoo", year=1838),
+        "Het Scheepvaartmuseum": dict(en="Maritime Museum", kind="museum"),
+        "A'DAM Toren": dict(kind="tower", height=80, anchor="top"),
+        "Leidseplein": dict(kind="square"),
+        "Rembrandtplein": dict(kind="square"),
+        "Vondelpark": dict(kind="park", year=1865),
+    }
+    # landmarks OSM maps only as points: EPSG:28992 x, y
+    EXTRA_LABELS = {
+        "Amsterdam Centraal": dict(en="Central Station", kind="railway station", year=1889, by="Pierre Cuypers", at=(121866, 488004)),
+        "Nieuwe Kerk": dict(en="New Church", kind="church", year=1408, at=(121257, 487454)),
+        "Koninklijk Theater Carré": dict(name="Carré", kind="theatre", year=1887, at=(122081, 486159)),
+        "NEMO Science Museum": dict(name="NEMO", kind="science museum", year=1997, by="Renzo Piano", at=(122647, 487437)),
+        "H'ART Museum": dict(kind="museum", alt="Hermitage Amsterdam Amstelhof", at=(121967, 486529)),
+        "IJ": dict(kind="river", at=(122000, 488450)),
+    }
+    JAZDOW = {}
+
 
 def make_views(found, osm, g, top_at, note, bmask, vol=None, leaf_ids=()):
     """Camera presets in three.js coords (x = col, y = up, z = row), derived from landmark positions."""
@@ -644,6 +690,8 @@ def make_views(found, osm, g, top_at, note, bmask, vol=None, leaf_ids=()):
         return [t[0] + off[0], t[1] + off[1], t[2] + off[2]]
 
     views = {}
+    if CITY == "amsterdam":
+        return amsterdam_views(found, g, top_at, at, add)
     pk = at("Pałac Kultury i Nauki")
     views["overview"] = dict(label="Overview", target=[pk[0], 20, pk[2]], pos=add([pk[0], 20, pk[2]], (-420, 860, 1180)))
     views["pkin"] = dict(label="Palace", target=[pk[0], 110, pk[2]], pos=add([pk[0], 110, pk[2]], (420, 160, 300)))
@@ -2663,3 +2711,30 @@ def pge_spire(vol, g, pal, note):
                 n += _line6(vol, (zm, r0 + math.sin(t) * 1.5, c0 + math.cos(t) * 1.5), (zm - 12 + int(nz.max()), r, c), cable)
                 break
     note(f"PGE spire: hung on 8 cables ({n} voxels) at {zm} m")
+
+
+def amsterdam_views(found, g, top_at, at, add):
+    """Camera presets for the Amsterdam map, from the labelled landmarks (three.js coords: x = col, y = up, z = row)."""
+    from aoi import I0, J0, to_grid
+    views = {}
+    dam = [I0 + 0.5, float(g[J0, I0]) + 10, J0 + 0.5]
+    views["overview"] = dict(label="Overview", target=dam, pos=add(dam, (-500, 700, 900)))
+    views["dam"] = dict(label="Dam", target=add(dam, (0, 5, 0)), pos=add(dam, (160, 70, 140)))
+
+    def tower(name, label, h, off):
+        if name in found:
+            t = at(name, h)
+            views[label.lower()] = dict(label=label, target=t, pos=add(t, off))
+    tower("Westerkerk", "Westerkerk", 50, (-180, 60, 220))
+    tower("Rijksmuseumgebouw", "Rijksmuseum", 20, (60, 90, -320))
+    tower("Munttoren", "Munttoren", 15, (120, 40, 160))
+    tower("Zuiderkerk", "Zuiderkerk", 35, (160, 50, 160))
+    c, r = (float(v) for v in to_grid(121866, 488004))
+    cs = [c, float(g[int(r), int(c)]) + 15, r]
+    views["centraal"] = dict(label="Centraal", target=cs, pos=add(cs, (-140, 70, 300)))  # the south front, from the Damrak side
+    # the canal belt from the west: Herengracht, Keizersgracht and Prinsengracht in the low sun
+    views["canals"] = dict(label="Canal belt", target=add(dam, (-500, -5, 300)), pos=add(dam, (-1300, 260, 700)))
+    H_, W_ = g.shape
+    mid = [W_ * 0.5, float(np.median(g)) + 10, H_ * 0.45]
+    views["city"] = dict(label="Whole map", target=mid, pos=add(mid, (0, 3300, 2000)))
+    return views

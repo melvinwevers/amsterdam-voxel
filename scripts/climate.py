@@ -21,7 +21,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 from aoi import RAW  # noqa: E402
 
-API = "https://archive-api.open-meteo.com/v1/archive?latitude=52.23&longitude=21.01&start_date=1995-01-01&end_date=2024-12-31&timezone=Europe%2FWarsaw"
+API = "https://archive-api.open-meteo.com/v1/archive?latitude=52.373&longitude=4.893&start_date=1995-01-01&end_date=2024-12-31&timezone=Europe%2FAmsterdam"
 DAILY = Path(RAW) / "climate" / "warsaw_daily2.json"
 OUT = Path(__file__).parent.parent / "web/public/data/climate.json"
 WINDOW = 10
@@ -53,7 +53,7 @@ def main():
 
     snowy = per_day(d["time"], (sf > 0.2).astype(float)) > 0
     r = lambda p: [round(float(x), 3) for x in p]
-    json.dump(dict(source="Open-Meteo historical weather API (ERA5), central Warsaw, 1995-2024",
+    json.dump(dict(source="Open-Meteo historical weather API (ERA5), central Amsterdam, 1995-2024",
                    **{k: r(v) for k, v in kinds.items()}, cover=r(per_day(d["time"], (depth >= 0.02).astype(float))),
                    snowy=[bool(x) for x in snowy]), open(OUT, "w"))
     none = np.nonzero(~snowy)[0] + 1

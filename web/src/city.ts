@@ -67,7 +67,15 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
   folMat.polygonOffset = true; folMat.polygonOffsetFactor = -1; folMat.polygonOffsetUnits = -2; // grass wins over the base's bare earth
   const inTile = new Uint8Array(total), complete = new Uint8Array(nb), counted = new Set<string>();
   let tilesIn = 0, folIn = 0, lmShown = 0, stage = 1, last = 0;
-  const show = (b: number) => { if (!shown[b + 1]) { shown[b + 1] = 255; if (isLandmark.has(b)) lmShown++; } };
+  // shown (the texture) = loaded and already built by the year slider's year; unknown years (0) are always built
+  // replaced: 1 m buildings a 0.5 m landmark (insets.ts) stands in for
+  const loaded = new Uint8Array(shown.length), replaced = new Uint8Array(shown.length), years = zones.years ?? [];
+  let year = Infinity;
+  const built = (b: number) => !(years[b] > year);
+  const flag = (b: number) => (loaded[b + 1] && built(b) && !replaced[b + 1] ? 255 : 0);
+  const insets: { bld: number[]; mesh: THREE.Mesh }[] = [];
+  const showInsets = () => { for (const i of insets) i.mesh.visible = i.bld.every((id) => built(id - 1)); };
+  const show = (b: number) => { if (!loaded[b + 1]) { loaded[b + 1] = 255; shown[b + 1] = flag(b); if (isLandmark.has(b)) lmShown++; } };
 
   // the caption's parts of the long building stage: what you see, then rings around you
   const progress = (f: THREE.Vector3) => {
@@ -128,6 +136,22 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
     // a building's label once it shows; the others (parks, the river) with the foliage
     gate: (x: number, z: number) => { const b = labelled.get(`${x},${z}`) ?? -1; return b >= 0 ? shown[b + 1] > 0 : stage >= 4; },
     get complete() { return stage >= 4; },
+    // a 0.5 m landmark is ready: it takes the place of its 1 m buildings (zones ids, 1-based)
+    addInset(bld: number[], mesh: THREE.Mesh) {
+      insets.push({ bld, mesh });
+      for (const id of bld) { replaced[id] = 1; shown[id] = 0; }
+      shownTex.needsUpdate = true;
+      showInsets();
+    },
+    // the city as it stood in year y: buildings built later lie flat as footprints (demolished ones are not known)
+    setYear(y: number) {
+      year = y;
+      U.uYearOn.value = Number.isFinite(y) ? 1 : 0;
+      U.uYear.value = Number.isFinite(y) ? y : 1e9;
+      for (let b = 0; b < nb; b++) shown[b + 1] = flag(b);
+      shownTex.needsUpdate = true;
+      showInsets();
+    },
   };
 }
 

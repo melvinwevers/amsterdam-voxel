@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CARS_FROM } from './sim/life';
 import type { Meta } from './types';
 import { FOLIAGE_CLASSES } from './foliage';
 import { dataTexture } from './util';
@@ -33,9 +34,13 @@ export interface VoxelUniforms {
   uWinFloors: U<number[]>;
   uWinCol: U<THREE.Vector3[]>;
   uAlbedo: U<number>;
+  uMap: U<THREE.Texture>;
+  uMapOn: U<number>;
+  uFill: U<THREE.Texture>;
+  uFillYear: U<number>;
   uPkinLight: U<THREE.Color>;
 }
-export interface BuildUniforms { uStage: U<number>; uBldOn: U<THREE.Texture> }
+export interface BuildUniforms { uStage: U<number>; uBldOn: U<THREE.Texture>; uYearOn: U<number>; uYear: U<number> }
 export interface ZoneUniforms {
   uZBlk: U<THREE.Texture>; uZBld: U<THREE.Texture>; uZFBlk: U<THREE.Texture>; uZFBld: U<THREE.Texture>;
   uZMode: U<number>; uZFocus: U<THREE.Vector2>; uZRad: U<number>;
@@ -69,9 +74,13 @@ export function makeUniforms(meta: Meta, engine: Engine): VoxelUniforms & Partia
     uWinFloors: { value: new Array(8).fill(0) },
     uWinCol: { value: Array.from({ length: 8 }, () => new THREE.Vector3(0.7, 0.25, 0.05)) },
     uAlbedo: { value: 0.7 },
+    uMap: { value: tiny(THREE.RGBAFormat, new Uint8Array(4)) },
+    uMapOn: { value: 0 },
+    uFill: { value: tiny(THREE.RedFormat, new Uint8Array(1)) },
+    uFillYear: { value: 1e9 },
     uPkinLight: { value: new THREE.Color(0.95, 0.74, 0.4) },
   };
-  if (engine === 'city') return { ...base, uStage: { value: 0 }, uBldOn: { value: tiny(THREE.RedFormat, new Uint8Array(1)) } };
+  if (engine === 'city') return { ...base, uStage: { value: 0 }, uBldOn: { value: tiny(THREE.RedFormat, new Uint8Array(1)) }, uYearOn: { value: 0 }, uYear: { value: 1e9 } };
   const ids = () => tiny(THREE.RedIntegerFormat, new Uint16Array(1), THREE.UnsignedShortType);
   return { ...base, uZBlk: { value: ids() }, uZBld: { value: ids() }, uZFBlk: { value: tiny(THREE.RedFormat, new Uint8Array(1)) },
     uZFBld: { value: tiny(THREE.RedFormat, new Uint8Array(1)) }, uZMode: { value: 0 }, uZFocus: { value: new THREE.Vector2() }, uZRad: { value: 1e9 } };
@@ -149,12 +158,19 @@ const NORMAL_FROM_IDX = `
 
 // While the city loads (city.ts): a building shows once uBldOn says so; until stage 2 the rest is folded under the
 // terrain, after it a hidden building lies flat as a ground-coloured footprint.
-const BUILD_PARS = `uniform float uStage; uniform sampler2D uBldOn; attribute float vbld;`;
+const BUILD_PARS = `uniform float uStage; uniform sampler2D uBldOn; uniform float uYearOn; uniform float uYear; uniform sampler2D uPalette; attribute float vbld;`;
 const BUILD_VERTEX = `
   float hideB = 0.0;
   {
     int bid = int(vbld + 0.5);
     bool on = bid > 0 ? texelFetch(uBldOn, ivec2(bid % 128, bid / 128), 0).r > 0.5 : uStage > 1.5;
+    // the year slider set to the past: building voxels with no OSM building under them (LiDAR-only sheds, courtyard
+    // extensions, scaffolding) can't be dated, so they go too; bridges, quays, lamps and the rest stay
+    if (bid == 0 && uYearOn > 0.5) {
+      int p = int(vpal + 0.5), m = int(texelFetch(uPalette, ivec2(p % 64, p / 64), 0).a * 255.0 + 0.5);
+      if (m == ${MAT.CAR} && uYear < ${CARS_FROM}.0) on = false;  // the parked cars and buses the LiDAR caught
+      if (m == ${MAT.WALL} || m == ${MAT.GLASS} || m == ${MAT.ROOF} || m == ${MAT.CONCRETE} || m == ${MAT.CLASSIC} || m == ${MAT.WINDOW}) on = false;
+    }
     if (!on) {
       if (uStage < 1.5) transformed.y = vattr.z - 3.0;
       else { hideB = 1.0; transformed.y = vattr.z; }
@@ -180,6 +196,7 @@ const FRAG_PARS = `
   uniform sampler2D uPalette; uniform sampler2D uLampMap;
   uniform vec2 uSize; uniform float uNight; uniform float uTime; uniform vec3 uHorizon;
   uniform float uDrop; uniform sampler2D uFlood; uniform float uWet; uniform float uSnow; uniform float uAlbedo; uniform vec3 uPkinLight;
+  uniform sampler2D uMap; uniform float uMapOn; uniform sampler2D uFill; uniform float uFillYear;
   varying vec3 vVox; varying vec3 vN; varying float vAO; varying float vGz; flat varying int vPal; varying float vHide;
   float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
   float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -365,6 +382,20 @@ const SURFACE = `
   if (m != ${MAT.LAMP} && m != ${MAT.JET} && m != ${MAT.SIGN}) col *= mix(1.0, uAlbedo, smoothstep(0.2, 0.6, dot(col, vec3(0.2126, 0.7152, 0.0722))));
   diffuseColor.rgb = col * mix(0.62, 1.0, vAO);
   if (vHide > 0.5) { diffuseColor.rgb = vec3(0.42, 0.41, 0.39); gEmissive = vec3(0.0); }
+  // the year slider's historical map (scripts/fetch_maps.py, 1 m per pixel on the grid) on the ground and on the
+  // flattened footprints of buildings not yet built: streets, canals and the blocks of that time underfoot
+  if (uMapOn > 0.5 && vN.y > 0.5 && m != ${MAT.WATER} && (lvl < 0.5 || vHide > 0.5)) {  // the canals stay water
+    vec4 mp = texture2D(uMap, (cell.xz + 0.5) / uSize);
+    if (mp.a > 0.5) { diffuseColor.rgb = mix(diffuseColor.rgb, pow(mp.rgb, vec3(2.2)) * 0.85, 0.9); gEmissive *= 0.3; }
+  }
+  // canals and harbours filled in after the slider's year (scripts/dempingen.py, 2 m cells): water again
+  if (uFillYear < 1e8 && vN.y > 0.5 && (lvl < 0.5 || vHide > 0.5)) {
+    float code = texelFetch(uFill, ivec2(cell.xz * 0.5), 0).r * 255.0;
+    if (code > 0.5 && 1500.0 + 2.0 * code > uFillYear) {
+      diffuseColor.rgb = pow(vec3(0.25, 0.33, 0.38), vec3(2.2)) * (0.92 + 0.08 * hash12(floor(cell.xz / 3.0)));
+      gEmissive = vec3(0.0); gRough = 0.12;
+    }
+  }
   #ifdef ZONES
   #ifdef CLAY
   if (zreal(cell)) discard;
@@ -384,7 +415,7 @@ export function makeBuildDepthMaterial(uniforms: VoxelUniforms & BuildUniforms) 
       .replace('#include <common>', `#include <common>\nattribute vec4 vattr; attribute float vpal; ${BUILD_PARS}
         varying vec3 vVox; varying vec3 vN; flat varying int vPal; ${NORMAL_FROM_IDX}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>${BUILD_VERTEX}
-        vVox = position; vN = normalFromIdx(mod(vattr.x, 8.0)); vPal = int(vpal + 0.5);`);
+        vVox = (modelMatrix * vec4(position, 1.0)).xyz; vN = normalFromIdx(mod(vattr.x, 8.0)); vPal = int(vpal + 0.5);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D uPalette; varying vec3 vVox; varying vec3 vN; flat varying int vPal;
@@ -421,7 +452,8 @@ export function makeVoxelMaterial(uniforms: VoxelUniforms, { clay = false } = {}
       .replace('#include <shadowmap_vertex>', THREE.ShaderChunk.shadowmap_vertex.replace(
         'directionalLightShadows[ i ].shadowNormalBias', '(directionalLightShadows[ i ].shadowNormalBias + (nAng > 0.5 ? 1.2 : 0.0))'))
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vVox = position; vN = normalFromIdx(nAx); vAO = vattr.y / 3.0; vGz = vattr.z; vPal = int(vpal + 0.5); vHide = 0.0;
+        vVox = (modelMatrix * vec4(position, 1.0)).xyz; vN = normalFromIdx(nAx); vAO = vattr.y / 3.0;  // world metres (the 0.5 m landmarks are scaled meshes)
+        vGz = vattr.z; vPal = int(vpal + 0.5); vHide = 0.0;
         ${building ? `${BUILD_VERTEX} vHide = hideB;` : ''}`);
     shader.fragmentShader = defs + shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${FRAG_PARS}`)
