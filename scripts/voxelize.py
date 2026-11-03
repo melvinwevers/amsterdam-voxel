@@ -679,6 +679,13 @@ def flatten_roofs(top):
 
 
 flatten_roofs(top)
+# 3D BAG's fitted roof planes (scripts/bag_roofs.py) where they agree with the LiDAR to within 6 m: clean gables and
+# pitches instead of the DSM's ragged steps (towers, spires and anything 3D BAG misses keep the LiDAR's)
+if Path("data/bag_roof.npy").exists():
+    _br = np.load("data/bag_roof.npy") - dtm
+    _ok = bmask & np.isfinite(_br) & (_br > 2) & (np.abs(_br - top) < 6)
+    note("roof cells from 3D BAG LoD2.2:", int(_ok.sum()), "of", int(bmask.sum()), "building cells; mean change %.2f m" % float(np.abs(_br - top)[_ok].mean()))
+    top = np.where(_ok, _br, top).astype(np.float32)
 topi = np.where(bmask, np.round(top), 0).astype(np.int32)
 boti = np.round(bot_rel).astype(np.int32)
 bmask &= topi >= 2
