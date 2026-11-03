@@ -4,7 +4,8 @@ import type { LifeMeshes } from './meshes';
 
 // Zouk evenings on the dark stone disc south-east of Centrum Nauki Kopernik (OSM way 603145360, ~11 x 14 m): couples in
 // close hold rock on the beat and turn about their centre, the follower now and then spun out and back.
-export const DANCE = { x: 2626.2, y: 741.0, rx: 3.6, ry: 5.0, couples: 7, from: 18.5, to: 23.5, bpm: 84 };
+// (Warsaw's spot; in Amsterdam no couples: the coordinates fall at a random place on this map)
+export const DANCE = { x: 2626.2, y: 741.0, rx: 3.6, ry: 5.0, couples: 0, from: 18.5, to: 23.5, bpm: 84 };
 const SHIRTS = ['#b03a48', '#f0f0f0', '#2f2f33', '#d9a441', '#8b5fa8', '#3d6fa8', '#e07a9a', '#5a8fa3', '#c8553d', '#1f6f5c'];
 
 // writes the dancers into the people meshes from instance i0 on; returns how many

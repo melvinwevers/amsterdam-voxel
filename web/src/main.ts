@@ -180,7 +180,7 @@ const mapTex = new Map<number, Promise<THREE.Texture>>();
 fetchJson<{ maps: HistMap[] }>('data/maps/index.json').then((d) => { histMaps = d.maps; setYear(bar.year.value); }).catch(() => {});
 const mapFor = (y: number) => (y >= NOW_YEAR || !histMaps.length ? null : [...histMaps].reverse().find((m) => m.year <= y) ?? histMaps[0]);
 let mapShown = 0;
-let fillTex: Promise<THREE.Texture> | null = null;
+let fillTex: Promise<THREE.Texture> | null = null, treeTex: Promise<THREE.Texture> | null = null;
 function setYear(y: number) {
   const past = y < NOW_YEAR ? y : Infinity;
   city?.setYear(past);
@@ -193,6 +193,11 @@ function setYear(y: number) {
   if (Number.isFinite(past) && !fillTex) fillTex = fetchGzip('data/dempingen.bin').then((buf) => {
     const t = dataTexture(new Uint8Array(buf), Math.ceil(U.uSize.value.x / 2), Math.ceil(U.uSize.value.y / 2), THREE.RedFormat);
     U.uFill.value = t;
+    return t;
+  });
+  if (Number.isFinite(past) && !treeTex) treeTex = fetchGzip('data/treeyears.bin').then((buf) => {
+    const t = dataTexture(new Uint8Array(buf), Math.ceil(U.uSize.value.x / 2), Math.ceil(U.uSize.value.y / 2), THREE.RedFormat);
+    U.uTreeYear.value = t;
     return t;
   });
   mapShown = m?.year ?? 0;
@@ -266,10 +271,11 @@ function followNearest(kind: Kind) {
 function searchItems(meta: Meta): SearchItem[] {
   return [
     ...Object.values(meta.views).map((v) => ({ name: v.label, kind: 'viewpoint', featured: true, go: () => goView(v) })),
-    ...meta.labels.map((l) => ({ name: l.name, alt: [l.en, l.alt].join(' '), kind: l.kind, go: () => goPlace(l.x, l.y, Math.max(40, (l.R ?? 20) * 1.4), null, l.name) })),
-    { name: 'Follow a tram', alt: 'tramwaj tram ride follow jedź', kind: 'action', go: () => followNearest('tram') },
-    { name: 'Follow a car', alt: 'samochód car bus autobus ride follow jedź', kind: 'action', go: () => followNearest('car') },
-    { name: 'Follow someone', alt: 'person people pieszy przechodzień idź walk with follow', kind: 'action', go: () => followNearest('person') },
+    ...meta.labels.map((l) => ({ name: l.name, alt: [l.en, l.alt].join(' '), kind: l.kind,
+      go: () => { goPlace(l.x, l.y, Math.max(40, (l.R ?? 20) * 1.4), null, l.name); photos.show(l.name, bar.year.value); } })),
+    { name: 'Follow a tram', alt: 'tram ride follow meerijden volgen', kind: 'action', go: () => followNearest('tram') },
+    { name: 'Follow a car', alt: 'car auto bus ride follow volgen', kind: 'action', go: () => followNearest('car') },
+    { name: 'Follow someone', alt: 'person people persoon wandelen walk with follow volgen', kind: 'action', go: () => followNearest('person') },
   ];
 }
 

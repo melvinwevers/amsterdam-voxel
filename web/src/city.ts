@@ -63,7 +63,7 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
   for (let ty = 0; ty < d.ny; ty++) for (let tx = 0; tx < d.nx; tx++) S.request(1, tx, ty, prio(index(tx, ty), focus()), true);
   S.pump();
 
-  const depthMat = makeBuildDepthMaterial(U), folMat = makeVoxelMaterial(U);
+  const depthMat = makeBuildDepthMaterial(U), folMat = makeVoxelMaterial(U, { foliage: true });
   folMat.polygonOffset = true; folMat.polygonOffsetFactor = -1; folMat.polygonOffsetUnits = -2; // grass wins over the base's bare earth
   const inTile = new Uint8Array(total), complete = new Uint8Array(nb), counted = new Set<string>();
   let tilesIn = 0, folIn = 0, lmShown = 0, stage = 1, last = 0;
@@ -105,7 +105,7 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
     for (const n of S.nodes.values()) {
       if (n.s !== 1 || n.state !== 'ready' || counted.has(n.key)) continue;
       counted.add(n.key);
-      if (n.foliage) { folIn++; if (n.mesh) { n.mesh.material = folMat; n.mesh.visible = true; } continue; }
+      if (n.foliage) { folIn++; if (n.mesh) { n.mesh.material = folMat; n.mesh.visible = true; n.mesh.castShadow = !Number.isFinite(year); } continue; }
       const i = index(n.tx, n.ty);
       inTile[i] = 1; tilesIn++;
       if (n.mesh) { n.mesh.customDepthMaterial = depthMat; n.mesh.visible = true; }
@@ -146,6 +146,8 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
     // the city as it stood in year y: buildings built later lie flat as footprints (demolished ones are not known)
     setYear(y: number) {
       year = y;
+      // trees planted later are cut in the shader, which the shadow pass does not see: no tree shadows in the past
+      for (const n of S.nodes.values()) if (n.foliage && n.mesh) n.mesh.castShadow = !Number.isFinite(y);
       U.uYearOn.value = Number.isFinite(y) ? 1 : 0;
       U.uYear.value = Number.isFinite(y) ? y : 1e9;
       for (let b = 0; b < nb; b++) shown[b + 1] = flag(b);

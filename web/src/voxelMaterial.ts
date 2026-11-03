@@ -38,6 +38,7 @@ export interface VoxelUniforms {
   uMapOn: U<number>;
   uFill: U<THREE.Texture>;
   uFillYear: U<number>;
+  uTreeYear: U<THREE.Texture>;
   uPkinLight: U<THREE.Color>;
 }
 export interface BuildUniforms { uStage: U<number>; uBldOn: U<THREE.Texture>; uYearOn: U<number>; uYear: U<number> }
@@ -77,6 +78,7 @@ export function makeUniforms(meta: Meta, engine: Engine): VoxelUniforms & Partia
     uMap: { value: tiny(THREE.RGBAFormat, new Uint8Array(4)) },
     uMapOn: { value: 0 },
     uFill: { value: tiny(THREE.RedFormat, new Uint8Array(1)) },
+    uTreeYear: { value: tiny(THREE.RedFormat, new Uint8Array(1)) },
     uFillYear: { value: 1e9 },
     uPkinLight: { value: new THREE.Color(0.95, 0.74, 0.4) },
   };
@@ -196,7 +198,7 @@ const FRAG_PARS = `
   uniform sampler2D uPalette; uniform sampler2D uLampMap;
   uniform vec2 uSize; uniform float uNight; uniform float uTime; uniform vec3 uHorizon;
   uniform float uDrop; uniform sampler2D uFlood; uniform float uWet; uniform float uSnow; uniform float uAlbedo; uniform vec3 uPkinLight;
-  uniform sampler2D uMap; uniform float uMapOn; uniform sampler2D uFill; uniform float uFillYear;
+  uniform sampler2D uMap; uniform float uMapOn; uniform sampler2D uFill; uniform float uFillYear; uniform sampler2D uTreeYear;
   varying vec3 vVox; varying vec3 vN; varying float vAO; varying float vGz; flat varying int vPal; varying float vHide;
   float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
   float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -236,6 +238,13 @@ const SURFACE = `
   vec3 cell = floor(vVox - vN * 0.5 + 1e-3);
   float gz = vGz;
   float lvl = cell.y - gz;
+  #ifdef FOLIAGE
+  // the year slider: trees planted after its year (scripts/tree_years.py, 2 m cells) are not there yet; grass stays
+  if (m != ${MAT.GRASS} && uFillYear < 1e8) {
+    float ty = texelFetch(uTreeYear, ivec2(cell.xz * 0.5), 0).r * 255.0;
+    if (ty > 0.5 && 1500.0 + 2.0 * ty > uFillYear) discard;
+  }
+  #endif
   bool vert = abs(vN.y) < 0.5;
   float u = abs(vN.x) > 0.5 ? cell.z : cell.x;
   float wpos = abs(vN.x) > 0.5 ? cell.x : cell.z;
@@ -433,13 +442,13 @@ export function makeBuildDepthMaterial(uniforms: VoxelUniforms & BuildUniforms) 
 }
 
 // clay: the stand-in city outside the real area (zones.ts); uClay 0 keeps its colours
-export function makeVoxelMaterial(uniforms: VoxelUniforms, { clay = false } = {}) {
+export function makeVoxelMaterial(uniforms: VoxelUniforms, { clay = false, foliage = false } = {}) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0.0 });
   const clayU = { uClay: { value: 1 } };
   const building = 'uStage' in uniforms, zones = 'uZMode' in uniforms;
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms, clay ? clayU : {});
-    const defs = (zones ? `#define ZONES\n${ZONES_PARS}\n` : '') + (clay ? '#define CLAY\nuniform int uClay;\n' : '');
+    const defs = (zones ? `#define ZONES\n${ZONES_PARS}\n` : '') + (clay ? '#define CLAY\nuniform int uClay;\n' : '') + (foliage ? '#define FOLIAGE\n' : '');
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec4 vattr; attribute float vpal; ${building ? BUILD_PARS : ''}
@@ -465,7 +474,7 @@ export function makeVoxelMaterial(uniforms: VoxelUniforms, { clay = false } = {}
         float aoF = mix(0.55, 1.0, vAO);
         reflectedLight.indirectDiffuse *= aoF; reflectedLight.indirectSpecular *= aoF;`);
   };
-  mat.customProgramCacheKey = () => `voxel-${building ? 'b' : ''}${zones ? 'z' : ''}${clay ? 'c' : ''}`;
+  mat.customProgramCacheKey = () => `voxel-${building ? 'b' : ''}${zones ? 'z' : ''}${clay ? 'c' : ''}${foliage ? 'f' : ''}`;
   return Object.assign(mat, { clay: clayU.uClay });
 }
 
