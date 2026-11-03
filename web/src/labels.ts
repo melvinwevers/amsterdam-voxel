@@ -43,10 +43,7 @@ export class Labels {
     labels.forEach((l) => {
       const pin = this.add(`label${(l.far ?? 0) >= 9000 ? ' major' : ''}`, l,
         new THREE.Vector3(l.x + 0.5, l.z + 1, l.y + 0.5), new THREE.Vector3(l.x + 0.5, (l.g ?? 0) + 2, l.y + 0.5), (l.R ?? 30) + 6);
-      pin.txt.addEventListener('click', () => {
-        if (l.site && pin.level === 2) open(l.site, '_blank', 'noopener');
-        else onClick(l);
-      });
+      pin.txt.addEventListener('click', () => onClick(l));  // no links out: the place's panel (photos.ts) instead
       this.pins.push(pin);
     });
     document.fonts?.ready.then(() => { for (const p of this.pins) p.dims = []; });

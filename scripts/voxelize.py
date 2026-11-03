@@ -1443,6 +1443,19 @@ if len(rr):
     for dz in (1, 2):
         vol[zt_ - dz, rr, cc] = C["deck"]
     vol[zt_ - 1, rr, cc] = deck_col[rr, cc]
+    # by material (scripts/bridges.py, the city's bridge register): the slab under the street in brick, timber,
+    # painted steel or concrete; brick a voxel deeper; a parapet where the deck faces the water
+    if Path("data/bridges.npy").exists():
+        bm_ = np.load("data/bridges.npy")[rr, cc]
+        side_ = np.array([C["deck"], pal("#7b4535"), pal("#6d5a45"), pal("#3e4a48", M_METAL), C["deck"]], np.int64)[bm_]
+        vol[zt_ - 2, rr, cc] = side_
+        br_ = (bm_ == 1) & (zt_ - 3 > g[rr, cc])
+        vol[zt_[br_] - 3, rr[br_], cc[br_]] = side_[br_]
+        wet_edge = ndimage.binary_dilation(water_ & ~deck) & deck
+        pe_ = wet_edge[rr, cc] & (bm_ > 0)
+        vol[zt_[pe_], rr[pe_], cc[pe_]] = side_[pe_]
+        note("bridge decks by material (cells):", {k: int((bm_ == v).sum()) for k, v in (("brick", 1), ("wood", 2), ("steel", 3), ("concrete", 4))},
+             "parapet cells:", int(pe_.sum()))
 note("bridge deck cells:", int(deck.sum()))
 # bridge pylons (Most Świętokrzyski's ~90 m mast): compact LiDAR blobs far above the deck inside a bridge
 pyl = (bridge_area > 0) & (nd_max > np.where(deck_h > 0, deck_h, nd_mean) + 45) & ~bmask  # the stays fan out low; only the mast stands this high

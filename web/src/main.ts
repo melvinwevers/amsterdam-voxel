@@ -256,7 +256,7 @@ function goView(v: View) {
 
 const photos = new Photos();
 function onLabel(l: Label) {
-  photos.show(l.name, bar.year.value);  // its old pictures, if the archive has any
+  photos.show(l, bar.year.value);  // what it is and its old pictures
   const v = Object.values(views).find((w) => w.label === l.name);
   if (v && nav.mode === 'orbit') goView(v);
   else goPlace(l.x, l.y, 60, null, l.name);
@@ -272,7 +272,7 @@ function searchItems(meta: Meta): SearchItem[] {
   return [
     ...Object.values(meta.views).map((v) => ({ name: v.label, kind: 'viewpoint', featured: true, go: () => goView(v) })),
     ...meta.labels.map((l) => ({ name: l.name, alt: [l.en, l.alt].join(' '), kind: l.kind,
-      go: () => { goPlace(l.x, l.y, Math.max(40, (l.R ?? 20) * 1.4), null, l.name); photos.show(l.name, bar.year.value); } })),
+      go: () => { goPlace(l.x, l.y, Math.max(40, (l.R ?? 20) * 1.4), null, l.name); photos.show(l, bar.year.value); } })),
     { name: 'Follow a tram', alt: 'tram ride follow meerijden volgen', kind: 'action', go: () => followNearest('tram') },
     { name: 'Follow a car', alt: 'car auto bus ride follow volgen', kind: 'action', go: () => followNearest('car') },
     { name: 'Follow someone', alt: 'person people persoon wandelen walk with follow volgen', kind: 'action', go: () => followNearest('person') },

@@ -124,3 +124,6 @@ body:not(.loading) #bar { transition: opacity .12s 1.2s; }
 .photos .y { font-weight: 600; } .photos .k { color: rgba(255,255,255,.62); }
 .photos small { display: block; color: rgba(255,255,255,.75); line-height: 1.35; margin-top: 2px; }
 .photos footer { margin-top: 10px; color: rgba(255,255,255,.5); font-size: 10px; }
+.photos .what { margin: -2px 0 10px; color: rgba(255,255,255,.8); line-height: 1.4; }
+.photos h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.62); text-transform: uppercase; letter-spacing: .04em; }
+.photos figure { margin: 0; }
