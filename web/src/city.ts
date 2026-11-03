@@ -3,6 +3,7 @@ import type { Caption } from './caption';
 import type { TileStreamer } from './stream';
 import type { Meta, Zones } from './types';
 import { dataTexture, fetchGzip, fetchJson } from './util';
+import { loadHist, type HistIndex } from './hist';
 import { makeBuildDepthMaterial, makeVoxelMaterial, type BuildUniforms, type VoxelUniforms } from './voxelMaterial';
 
 const T = 128;
@@ -30,7 +31,9 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
   const [zbuf, zones] = await Promise.all([fetchGzip('data/zones.bin'), fetchJson<Zones>('data/zones.json')]);
   const bld = new Uint16Array(zbuf, W * D * 2, W * D);
   S.bldMap = { data: bld, W };
-  const nb = zones.buildings.length, shown = new Uint8Array(128 * Math.ceil((nb + 1) / 128));
+  // the 1832 buildings gone since (hist.ts) take ids nb + 1 .. nb + nh in the same flags
+  const histIndex = await fetchJson<HistIndex>('data/hist/index.json').catch(() => null), nh = histIndex?.buildings.length ?? 0;
+  const nb = zones.buildings.length, shown = new Uint8Array(128 * Math.ceil((nb + nh + 1) / 128));
   const shownTex = dataTexture(shown, 128, shown.length / 128, THREE.RedFormat);
   U.uBldOn.value = shownTex;
   U.uStage.value = 1;
@@ -63,7 +66,8 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
   for (let ty = 0; ty < d.ny; ty++) for (let tx = 0; tx < d.nx; tx++) S.request(1, tx, ty, prio(index(tx, ty), focus()), true);
   S.pump();
 
-  const depthMat = makeBuildDepthMaterial(U), folMat = makeVoxelMaterial(U, { foliage: true });
+  const depthMat = makeBuildDepthMaterial(U), folMat = makeVoxelMaterial(U, { foliage: true }), histMat = makeVoxelMaterial(U);
+  let histLoading: Promise<void> | null = null;
   folMat.polygonOffset = true; folMat.polygonOffsetFactor = -1; folMat.polygonOffsetUnits = -2; // grass wins over the base's bare earth
   const inTile = new Uint8Array(total), complete = new Uint8Array(nb), counted = new Set<string>();
   let tilesIn = 0, folIn = 0, lmShown = 0, stage = 1, last = 0;
@@ -146,6 +150,11 @@ export async function installCity({ streamer: S, uniforms: U, meta, scene, focus
     // the city as it stood in year y: buildings built later lie flat as footprints (demolished ones are not known)
     setYear(y: number) {
       year = y;
+      // the 1832 city: each building from its "from" year until its successor went up; loaded the first time
+      if (histIndex) {
+        for (let k = 1; k <= nh; k++) { const [from, until] = histIndex.buildings[k - 1]; shown[nb + k] = y >= from && y < until ? 255 : 0; }
+        if (Number.isFinite(y) && !histLoading) histLoading = loadHist(histIndex, nb, W, D, histMat, depthMat, scene).then(() => { shownTex.needsUpdate = true; });
+      }
       // trees planted later are cut in the shader, which the shadow pass does not see: no tree shadows in the past
       for (const n of S.nodes.values()) if (n.foliage && n.mesh) n.mesh.castShadow = !Number.isFinite(y);
       U.uYearOn.value = Number.isFinite(y) ? 1 : 0;

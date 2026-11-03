@@ -16,4 +16,6 @@ PYTHONPATH=scripts uv run python scripts/fetch_maps.py   # six town plans 1625-1
 PYTHONPATH=scripts uv run python scripts/dempingen.py    # canals filled in since: water before their year
 PYTHONPATH=scripts uv run python scripts/photos.py       # the city archive's copyright-free pictures per place
 PYTHONPATH=scripts uv run --with "laspy[lazrs]" python scripts/insets.py  # landmarks at 0.5 m from the 20 cm DSM
+PYTHONPATH=scripts uv run python scripts/tree_years.py                    # trees by planting year
+PYTHONPATH=scripts uv run --with pyogrio --with geopandas python scripts/hist1832.py  # the 1832 buildings gone since
 rm -f web/public/data/flood.bin web/public/data/flood.json  # the Vistula's; Amsterdam's canals sit at a fixed level
